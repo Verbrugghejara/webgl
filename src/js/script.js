@@ -273,44 +273,45 @@ window.addEventListener('keyup', (event) => {
 });
 
 function updatePlaneMovement() {
-    // Mouse controls for banking/turning
-    // velocity.x += mouse.x * 0.002;
-    // velocity.y += mouse.y * 0.002;
-    
-    // Keyboard controls
-    if (keys['KeyW'] || keys['ArrowUp']) {
-        // Move forward in the direction the plane is facing
-        velocity.x += Math.sin(planeRotation) * 0.005;
-        velocity.z -= Math.cos(planeRotation) * 0.005; // Negative Z is forward
-    }
-    if (keys['KeyS'] || keys['ArrowDown']) {
-        // Move backward
-        velocity.x -= Math.sin(planeRotation) * 0.003;
-        velocity.z += Math.cos(planeRotation) * 0.003; // Positive Z is backward
-    }
+    // Keyboard controls for turning
     if (keys['KeyA'] || keys['ArrowLeft']) {
         planeRotation -= 0.05; // Turn left
     }
     if (keys['KeyD'] || keys['ArrowRight']) {
         planeRotation += 0.05; // Turn right
     }
-    if (keys['Space']) velocity.y += 0.005; // Up
-    if (keys['ShiftLeft']) velocity.y -= 0.002; // Down
     
     // 180 degree turn (U-turn)
     if (keys['KeyR']) {
         planeRotation += Math.PI; // Add 180 degrees (π radians)
     }
     
-    // Apply velocity with damping
-    planePosition.x += velocity.x;
-    planePosition.y += velocity.y;
-    planePosition.z += velocity.z;
+    // Calculate current forward direction
+    const forwardX = Math.sin(planeRotation);
+    const forwardZ = -Math.cos(planeRotation); // Negative Z is forward
     
-    // Damping
-    velocity.x *= 0.95;
+    // Direct movement based on input (no momentum accumulation for forward/backward)
+    let moveSpeed = 0;
+    if (keys['KeyW'] || keys['ArrowUp']) {
+        moveSpeed = 0.1; // Forward speed
+    }
+    if (keys['KeyS'] || keys['ArrowDown']) {
+        moveSpeed = -0.05; // Backward speed
+    }
+    
+    // Apply direct movement in current facing direction
+    if (moveSpeed !== 0) {
+        planePosition.x += forwardX * moveSpeed;
+        planePosition.z += forwardZ * moveSpeed;
+    }
+    
+    // Vertical movement with momentum
+    if (keys['Space']) velocity.y += 0.005; // Up
+    if (keys['ShiftLeft']) velocity.y -= 0.002; // Down
+    
+    // Apply vertical velocity with damping
+    planePosition.y += velocity.y;
     velocity.y *= 0.95;
-    velocity.z *= 0.98;
     
     // Update plane visual position and rotation
     playerPlane.position.set(planePosition.x, planePosition.y, planePosition.z);
@@ -346,7 +347,7 @@ function animate(time){
     updatePlaneMovement();
     
     // Update shader camera to follow plane with rotation
-    // Camera behind and above plane - correct orientation
+    // Camera behind and above plane - consistent coordinate system
     const cameraOffset = new THREE.Vector3(
         -Math.sin(planeRotation) * 3,  // X offset (behind plane)
         1,                             // Y offset (height)
@@ -375,11 +376,11 @@ function animate(time){
     );
     camera.position.copy(playerPlane.position.clone().add(camera3DOffset));
     
-    // Look ahead of the plane in flight direction
+    // Look ahead of the plane in flight direction - consistent with movement
     const lookTarget = new THREE.Vector3(
-        playerPlane.position.x + Math.sin(planeRotation) * 2,  // X ahead
+        playerPlane.position.x + Math.sin(planeRotation) * 3,  // X ahead
         playerPlane.position.y,
-        playerPlane.position.z - Math.cos(planeRotation) * 2   // Z ahead
+        playerPlane.position.z - Math.cos(planeRotation) * 3   // Z ahead (forward is negative Z)
     );
     camera.lookAt(lookTarget);
     
