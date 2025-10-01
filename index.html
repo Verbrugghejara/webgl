@@ -43,6 +43,8 @@ precision mediump float;
 uniform float iTime;
 uniform vec3 iResolution;
 uniform vec2 iMouse;
+uniform vec3 uCameraPos;
+uniform vec3 uCameraTarget;
 varying vec2 vUv;
 
 #define THRESHOLD .003
@@ -202,17 +204,14 @@ vec3 PostEffects(vec3 rgb, vec2 xy){
 void main(){
     vec2 fragCoord = vUv*iResolution.xy;
     vec4 fragColor;
-    float m = (iMouse.x/iResolution.x)*300.0;
-    float gTime = (iTime*5.0+m+2352.0)*.006;
     vec2 xy = fragCoord.xy/iResolution.xy;
     vec2 uv = (-1.0+2.0*xy)*vec2(iResolution.x/iResolution.y,1.0);
-    vec3 camTar;
-    cameraPos=CameraPath(gTime+0.0);
-    cameraPos.x-=3.0;
-    camTar=CameraPath(gTime+0.009);
-    cameraPos.y+=Terrain(CameraPath(gTime+0.009).xz).x;
-    camTar.y=cameraPos.y;
-    float roll=.4*sin(gTime+.5);
+    
+    // Use provided camera position instead of automatic path
+    cameraPos = uCameraPos;
+    vec3 camTar = uCameraTarget;
+    
+    float roll = 0.0; // No automatic roll
     vec3 cw=normalize(camTar-cameraPos);
     vec3 cp=vec3(sin(roll),cos(roll),0.0);
     vec3 cu=cross(cw,cp);
@@ -237,7 +236,9 @@ void main(){
     uniforms: {
         iTime: { value: 0 },
         iResolution: { value: new THREE.Vector3(window.innerWidth, window.innerHeight, 1) },
-        iMouse: { value: new THREE.Vector2(0,0) }
+        iMouse: { value: new THREE.Vector2(0,0) },
+        uCameraPos: { value: new THREE.Vector3(0, 2, 5) },
+        uCameraTarget: { value: new THREE.Vector3(0, 2, 0) }
     },
     transparent: false
 });
@@ -260,15 +261,56 @@ const playerPlane = new THREE.Mesh(planeGeometry, planeMaterial);
 playerPlane.position.set(0,0,0);
 scene.add(playerPlane);
 
-// ------------------- Mouse Controls -------------------
+// ------------------- Flight Controls -------------------
 const mouse = new THREE.Vector2();
+const planePosition = { x: 0, y: 0, z: 0 };
+const velocity = { x: 0, y: 0, z: 0 };
+const speed = 0.1;
+
 window.addEventListener('mousemove', (event)=>{
     mouse.x = (event.clientX/window.innerWidth)*2-1;
     mouse.y = -(event.clientY/window.innerHeight)*2+1;
-
-    playerPlane.position.x = mouse.x*5;
-    playerPlane.position.y = mouse.y*3;
 });
+
+// Keyboard controls for flight
+const keys = {};
+window.addEventListener('keydown', (event) => {
+    keys[event.code] = true;
+});
+window.addEventListener('keyup', (event) => {
+    keys[event.code] = false;
+});
+
+function updatePlaneMovement() {
+    // Mouse controls for banking/turning
+    velocity.x += mouse.x * 0.002;
+    velocity.y += mouse.y * 0.002;
+    
+    // Keyboard controls
+    if (keys['KeyW'] || keys['ArrowUp']) velocity.z -= 0.003; // Forward
+    if (keys['KeyS'] || keys['ArrowDown']) velocity.z += 0.003; // Backward
+    if (keys['KeyA'] || keys['ArrowLeft']) velocity.x -= 0.002; // Left
+    if (keys['KeyD'] || keys['ArrowRight']) velocity.x += 0.002; // Right
+    if (keys['Space']) velocity.y += 0.002; // Up
+    if (keys['ShiftLeft']) velocity.y -= 0.002; // Down
+    
+    // Apply velocity with damping
+    planePosition.x += velocity.x;
+    planePosition.y += velocity.y;
+    planePosition.z += velocity.z;
+    
+    // Damping
+    velocity.x *= 0.95;
+    velocity.y *= 0.95;
+    velocity.z *= 0.98;
+    
+    // Update plane visual position
+    playerPlane.position.set(planePosition.x, planePosition.y, planePosition.z);
+    
+    // Tilt plane based on movement
+    playerPlane.rotation.z = -velocity.x * 10;
+    playerPlane.rotation.x = velocity.z * 5;
+}
 
 // ------------------- Resize -------------------
 window.addEventListener('resize', ()=>{
@@ -281,8 +323,27 @@ window.addEventListener('resize', ()=>{
 // ------------------- Animate -------------------
 function animate(time){
     requestAnimationFrame(animate);
+    
+    // Update plane movement
+    updatePlaneMovement();
+    
+    // Update shader camera to follow plane
+    const cameraOffset = new THREE.Vector3(0, 1, 3); // Camera behind and above plane
+    const cameraPos = playerPlane.position.clone().add(cameraOffset);
+    const cameraTarget = playerPlane.position.clone().add(new THREE.Vector3(0, 0, -2)); // Look ahead of plane
+    
     shaderMaterial.uniforms.iTime.value = time*0.001;
     shaderMaterial.uniforms.iMouse.value.set(mouse.x, mouse.y);
+    shaderMaterial.uniforms.uCameraPos.value.copy(cameraPos);
+    shaderMaterial.uniforms.uCameraTarget.value.copy(cameraTarget);
+    
+    // Update 3D camera to follow plane from behind
+    camera.position.set(
+        planePosition.x,
+        planePosition.y + 2,
+        planePosition.z + 5
+    );
+    camera.lookAt(playerPlane.position);
     
     // Render shader background first with orthographic camera (fullscreen)
     renderer.autoClear = false;
