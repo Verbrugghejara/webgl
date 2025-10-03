@@ -236,11 +236,9 @@ void main(){
 const shaderPlane = new THREE.Mesh(shaderGeometry, shaderMaterial);
 shaderPlane.position.set(0,0,0);
 
-// Create separate scene for background shader
 const backgroundScene = new THREE.Scene();
 backgroundScene.add(shaderPlane);
 
-// Set up orthographic camera for fullscreen shader effect
 const backgroundCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 backgroundCamera.position.z = 0.5;
 
@@ -263,7 +261,6 @@ window.addEventListener('mousemove', (event)=>{
     mouse.y = -(event.clientY/window.innerHeight)*2+1;
 });
 
-// Keyboard controls for flight
 const keys = {};
 window.addEventListener('keydown', (event) => {
     keys[event.code] = true;
@@ -273,62 +270,47 @@ window.addEventListener('keyup', (event) => {
 });
 
 function updatePlaneMovement() {
-    // Keyboard controls for turning
     if (keys['KeyA'] || keys['ArrowLeft']) {
-        planeRotation -= 0.05; // Turn left
+        planeRotation -= 0.05; 
     }
     if (keys['KeyD'] || keys['ArrowRight']) {
-        planeRotation += 0.05; // Turn right
+        planeRotation += 0.05;
     }
     
-    // 180 degree turn (U-turn)
-    if (keys['KeyR']) {
-        planeRotation += Math.PI; // Add 180 degrees (π radians)
-    }
-    
-    // Calculate current forward direction
     const forwardX = Math.sin(planeRotation);
-    const forwardZ = -Math.cos(planeRotation); // Negative Z is forward
+    const forwardZ = -Math.cos(planeRotation); 
     
-    // Direct movement based on input (no momentum accumulation for forward/backward)
     let moveSpeed = 0;
     if (keys['KeyW'] || keys['ArrowUp']) {
-        moveSpeed = 0.1; // Forward speed
+        moveSpeed = 0.1; 
     }
     if (keys['KeyS'] || keys['ArrowDown']) {
-        moveSpeed = -0.05; // Backward speed
+        moveSpeed = -0.05; 
     }
     
-    // Apply direct movement in current facing direction
     if (moveSpeed !== 0) {
         planePosition.x += forwardX * moveSpeed;
         planePosition.z += forwardZ * moveSpeed;
     }
     
-    // Vertical movement with momentum
-    if (keys['Space']) velocity.y += 0.005; // Up
-    if (keys['ShiftLeft']) velocity.y -= 0.002; // Down
+    if (keys['Space']) velocity.y += 0.005; 
+    if (keys['ShiftLeft']) velocity.y -= 0.002; 
     
-    // Apply vertical velocity with damping
     planePosition.y += velocity.y;
     velocity.y *= 0.95;
     
-    // Update plane visual position and rotation
     playerPlane.position.set(planePosition.x, planePosition.y, planePosition.z);
     
-    // Base rotation: point in flight direction
-    playerPlane.rotation.y = -planeRotation; // Point where we're flying
+    playerPlane.rotation.y = -planeRotation; 
     
-    // Banking effect only during turns
     let bankingRotation = 0;
     if (keys['KeyA'] || keys['ArrowLeft']) {
-        bankingRotation = 0.3; // Bank left while turning
+        bankingRotation = 0.3; 
     } else if (keys['KeyD'] || keys['ArrowRight']) {
-        bankingRotation = -0.3; // Bank right while turning
-    }
+        bankingRotation = -0.3;     }
     
-    playerPlane.rotation.z = bankingRotation; // Banking during turns
-    playerPlane.rotation.x = 0; // Keep nose level
+    playerPlane.rotation.z = bankingRotation; 
+    playerPlane.rotation.x = 0; 
 }
 
 // ------------------- Resize -------------------
@@ -343,23 +325,19 @@ window.addEventListener('resize', ()=>{
 function animate(time){
     requestAnimationFrame(animate);
     
-    // Update plane movement
     updatePlaneMovement();
     
-    // Update shader camera to follow plane with rotation
-    // Camera behind and above plane - consistent coordinate system
     const cameraOffset = new THREE.Vector3(
-        -Math.sin(planeRotation) * 3,  // X offset (behind plane)
-        1,                             // Y offset (height)
-        Math.cos(planeRotation) * 3    // Z offset (behind plane)
+        -Math.sin(planeRotation) * 3, 
+        1,                           
+        Math.cos(planeRotation) * 3   
     );
     const cameraPos = playerPlane.position.clone().add(cameraOffset);
     
-    // Calculate camera target - look ahead of plane in flight direction
     const lookAhead = new THREE.Vector3(
-        Math.sin(planeRotation) * 2,   // X target (ahead of plane)
-        0,                             // Y target (same level)
-        -Math.cos(planeRotation) * 2   // Z target (forward direction)
+        Math.sin(planeRotation) * 2, 
+        0,                            
+        -Math.cos(planeRotation) * 2   
     );
     const cameraTarget = playerPlane.position.clone().add(lookAhead);
     
@@ -368,28 +346,24 @@ function animate(time){
     shaderMaterial.uniforms.uCameraPos.value.copy(cameraPos);
     shaderMaterial.uniforms.uCameraTarget.value.copy(cameraTarget);
     
-    // Update 3D camera to follow plane from behind with rotation
     const camera3DOffset = new THREE.Vector3(
-        -Math.sin(planeRotation) * 5,  // X offset (behind plane)
-        2,                             // Y offset (height)
-        Math.cos(planeRotation) * 5    // Z offset (behind plane)
+        -Math.sin(planeRotation) * 5, 
+        2,                             
+        Math.cos(planeRotation) * 5    
     );
     camera.position.copy(playerPlane.position.clone().add(camera3DOffset));
     
-    // Look ahead of the plane in flight direction - consistent with movement
     const lookTarget = new THREE.Vector3(
-        playerPlane.position.x + Math.sin(planeRotation) * 3,  // X ahead
+        playerPlane.position.x + Math.sin(planeRotation) * 3,  
         playerPlane.position.y,
-        playerPlane.position.z - Math.cos(planeRotation) * 3   // Z ahead (forward is negative Z)
+        playerPlane.position.z - Math.cos(planeRotation) * 3   
     );
     camera.lookAt(lookTarget);
     
-    // Render shader background first with orthographic camera (fullscreen)
     renderer.autoClear = false;
     renderer.clear();
     renderer.render(backgroundScene, backgroundCamera);
     
-    // Then render the 3D scene with perspective camera on top
     renderer.clearDepth();
     renderer.render(scene, camera);
 }
