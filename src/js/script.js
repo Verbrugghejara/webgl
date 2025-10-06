@@ -1,5 +1,5 @@
 
-import * as THREE from 'three';
+import * as THREE from 'https://unpkg.com/three@0.180.0/build/three.module.js';
 // ------------------- Renderer & Scene -------------------
 
 const canvas = document.querySelector('canvas.webgl')
@@ -253,7 +253,7 @@ scene.add(playerPlane);
 const mouse = new THREE.Vector2();
 const planePosition = { x: 0, y: 0, z: 0 };
 const velocity = { x: 0, y: 0, z: 0 };
-let planeRotation = 0; // Track plane's Y rotation
+let planeRotation = 0; 
 const speed = 0.1;
 
 window.addEventListener('mousemove', (event)=>{
