@@ -9,29 +9,34 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 // ------------------- Game State -------------------
 let gameStarted = false;
 let animationId = null;
+let gameTime = 0;
+let gameEnded = false;
+let allRingsCompleted = false;
+let lastRingReached = false;
+let lastRingTimer = 0;
+let isFreeFlightMode = false;
+let isFinishingFlight = false;
+let finishTimeout = null;
+let lastRingPassed = false;
 
 // ------------------- 3D Model Loading -------------------
-let playerPlane = null; // Will be replaced by loaded model
-let mixer = null; // Animation mixer
+let playerPlane = null;
+let mixer = null;
 const loader = new GLTFLoader();
 
 loader.load(
-    './assets/airplane.glb', // Try relative path first
+    './assets/airplane.glb',
     function (gltf) {
         console.log('Model loaded successfully from ./assets/airplane.glb');
-        // Called when the model is loaded
         const model = gltf.scene;
         
-        // Remove the old red box if it exists
         if (playerPlane) {
             scene.remove(playerPlane);
         }
         
-        // Set up the airplane model
-        model.scale.set(1.0, 1.0, 1.0); // Verdubbeld van 0.5 naar 1.0 = 2x groter
+        model.scale.set(1.0, 1.0, 1.0);
         model.position.set(0, 0, 0);
         
-        // Set up animation mixer
         mixer = new THREE.AnimationMixer(model);
         const clips = gltf.animations;
         if (clips && clips.length > 0) {
@@ -42,7 +47,6 @@ loader.load(
             console.log('No animations found in model');
         }
         
-        // Fix materials and enable shadows
         model.traverse((child) => {
             if (child.isMesh) {
                 child.castShadow = true;
@@ -60,7 +64,6 @@ loader.load(
     },
     function (error) {
         console.warn('Failed to load from ./assets/, trying /assets/...');
-        // Try alternative path
         loader.load(
             '/assets/airplane.glb',
             function (gltf) {
@@ -111,21 +114,208 @@ function createFallbackPlane() {
     console.log('Using fallback red box plane');
 }
 
-// ------------------- Start Screen Management -------------------
+// ------------------- Screen Management -------------------
 const startScreen = document.getElementById('startScreen');
 const startButton = document.getElementById('startButton');
+const flyFreeButton = document.getElementById('flyFreeButton');
 const gameArea = document.getElementById('gameArea');
+const endScreen = document.getElementById('endScreen');
+const playAgainButton = document.getElementById('playAgainButton');
+const backToMenuButton = document.getElementById('backToMenuButton');
 const score = document.getElementById('score');
+const scoreLabel = document.getElementById('scoreLabel');
 const speedDisplay = document.getElementById('speed');
+const altitudeDisplay = document.getElementById('altitude');
+const timerDisplay = document.getElementById('timer');
+const timerLabel = document.getElementById('timerLabel');
+const finalScore = document.getElementById('finalScore');
+const finalSpeed = document.getElementById('finalSpeed');
 
-startButton.addEventListener('click', () => {
-    startGame();
-});
+const speedThrottle = document.getElementById('speedThrottle');
+const throttleFill = document.getElementById('throttleFill');
+const throttleHandle = document.getElementById('throttleHandle');
+const throttleValue = document.getElementById('throttleValue');
+
+const finishCountdown = document.getElementById('finishCountdown');
+const countdownNumber = document.getElementById('countdownNumber');
+
+if (startButton) {
+    startButton.addEventListener('click', () => {
+        startGame();
+    });
+}
+
+if (flyFreeButton) {
+    flyFreeButton.addEventListener('click', () => {
+        startFreeFlightMode();
+    });
+}
+
+if (playAgainButton) {
+    playAgainButton.addEventListener('click', () => {
+        startGame();
+    });
+}
+
+if (backToMenuButton) {
+    backToMenuButton.addEventListener('click', () => {
+        backToStartScreen();
+    });
+}
 
 function startGame() {
     gameStarted = true;
+    isFreeFlightMode = false;
     startScreen.classList.add('hidden');
+    endScreen.classList.add('hidden');
     gameArea.classList.remove('hidden');
+    
+    resetGame();
+    
+    updateUIForGameMode();
+    
+    setTimeout(() => {
+        updateScore();
+        updateTimerDisplay();
+    }, 100);
+    
+    if (speedThrottle) {
+        speedThrottle.style.display = 'none';
+    }
+    
+    initializeThrottle();
+}
+
+function updateUIForGameMode() {
+    if (scoreLabel) {
+        scoreLabel.innerHTML = 'Ringen: <span id="score">0</span>/10';
+        scoreLabel.style.color = 'white';
+        const newScore = document.getElementById('score');
+        if (newScore) {
+            updateScore();
+        }
+    }
+    if (timerLabel) {
+        timerLabel.innerHTML = 'Tijd: <span id="timer">00:00</span>';
+        const newTimer = document.getElementById('timer');
+        if (newTimer) {
+            updateTimerDisplay();
+        }
+    }
+}
+
+function startFreeFlightMode() {
+    gameStarted = true;
+    isFreeFlightMode = true;
+    startScreen.classList.add('hidden');
+    endScreen.classList.add('hidden');
+    gameArea.classList.remove('hidden');
+    
+    resetGame();
+    hideRings();
+    
+    updateUIForFreeFlightMode();
+    
+    if (speedThrottle) {
+        speedThrottle.style.display = 'block';
+    }
+    
+    initializeThrottle();
+    
+    console.log("🆓 Free Flight Mode gestart! Gebruik 1/2/3 toetsen voor dag/nacht/storm");
+}
+
+function updateUIForFreeFlightMode() {
+    if (scoreLabel) {
+        scoreLabel.textContent = "🆓 Free Flight Mode";
+        scoreLabel.style.color = '#ff9900';
+    }
+    if (timerLabel) {
+        timerLabel.textContent = "Controles: ";
+    }
+    updateTimerDisplay();
+}
+
+function hideRings() {
+    rings.forEach(ring => {
+        ring.visible = false;
+    });
+}
+
+function showRings() {
+    rings.forEach(ring => {
+        ring.visible = true;
+    });
+}
+
+function showEndScreen(isSuccess = false) {
+    const currentEndScreen = document.getElementById('endScreen');
+    const currentGameArea = document.getElementById('gameArea');
+    const currentFinalScore = document.getElementById('finalScore');
+    const currentFinalSpeed = document.getElementById('finalSpeed');
+    
+    const endScreenTitle = currentEndScreen?.querySelector('h1');
+    const endScreenSubtitle = currentEndScreen?.querySelector('.subtitle');
+    const statusElement = currentEndScreen?.querySelector('.stat-value[style*="color: #00ff00"]');
+    
+    gameStarted = false;
+    gameEnded = true;
+    
+    if (currentGameArea) {
+        currentGameArea.classList.add('hidden');
+    }
+    
+    if (currentEndScreen) {
+        currentEndScreen.classList.remove('hidden');
+    }
+    
+    const ringsPassedCount = rings.filter(r => r.userData.passed).length;
+    const timeUsed = Math.floor(gameTime);
+    const minutes = Math.floor(timeUsed / 60);
+    const seconds = timeUsed % 60;
+    const timeString = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    
+    if (endScreenTitle) {
+        if (isSuccess) {
+            endScreenTitle.textContent = "🎉 Gefeliciteerd!";
+            endScreenTitle.style.background = "linear-gradient(45deg, #00ff00, #ffff00, #00ff00)";
+        } else {
+            endScreenTitle.textContent = "⏰ Net Niet Gelukt!";
+            endScreenTitle.style.background = "linear-gradient(45deg, #ff6600, #ff3300, #ff6600)";
+        }
+    }
+    
+    if (endScreenSubtitle) {
+        if (isSuccess) {
+            endScreenSubtitle.textContent = `Alle 10 ringen gepasseerd in ${timeString}!`;
+            endScreenSubtitle.style.color = "#ffff00";
+        } else {
+            const ringsPassedCount = rings.filter(r => r.userData.passed).length;
+            endScreenSubtitle.textContent = `${ringsPassedCount} van de 10 ringen gehaald in ${timeString}!`;
+            endScreenSubtitle.style.color = "#ffaa00";
+        }
+    }
+    
+    if (currentFinalScore) {
+        currentFinalScore.textContent = `${ringsPassedCount}/10`;
+    }
+    
+    if (currentFinalSpeed) {
+        currentFinalSpeed.textContent = `${speedMultiplier.toFixed(1)}x`;
+    }
+    
+    if (statusElement) {
+        if (isSuccess) {
+            statusElement.textContent = `✅ Voltooid in ${timeString}!`;
+            statusElement.style.color = "#00ff00";
+        } else {
+            const ringsPassedCount = rings.filter(r => r.userData.passed).length;
+            statusElement.textContent = `🎯 ${ringsPassedCount}/10 ringen in ${timeString}`;
+            statusElement.style.color = "#ff6600";
+        }
+    }
+    
+    console.log('🎉 Eindscherm getoond!');
 }
 
 // ------------------- Renderer & Scene -------------------
@@ -143,11 +333,9 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
 
 // ------------------- Lighting -------------------
-// Ambient light for general illumination
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
 scene.add(ambientLight);
 
-// Directional light (sun)
 const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
 directionalLight.position.set(50, 100, 50);
 directionalLight.castShadow = true;
@@ -163,15 +351,14 @@ const shaderMaterial = new THREE.RawShaderMaterial({
         iResolution: { value: new THREE.Vector3(window.innerWidth, window.innerHeight, 1) },
         uCameraPos: { value: new THREE.Vector3(0, 2, 5) },
         uCameraTarget: { value: new THREE.Vector3(0, 2, 0) },
-        uTimeOfDay: { value: 0.5 }, // 0 = nacht, 1 = dag
+        uTimeOfDay: { value: 0.5 },
         
-        // Ring effecten
-        uSpeedMultiplier: { value: 0.0 },    // Ring 0: Snelheidsboost
-        uColorFilter: { value: new THREE.Vector3(1, 1, 1) }, // Ring 1: Kleurfilter
-        uPsychedelicMode: { value: 0.0 },    // Ring 2: Psychedelische effecten
-        uWaveIntensity: { value: 0.0 },      // Ring 3: Golfeffecten
-        uGlitchMode: { value: 0.0 },         // Ring 4: Glitch effecten
-        uNightVision: { value: 0.0 }         // Ring 5: Nachtzicht
+        uSpeedMultiplier: { value: 0.0 },
+        uColorFilter: { value: new THREE.Vector3(1, 1, 1) },
+        uPsychedelicMode: { value: 0.0 },
+        uWaveIntensity: { value: 0.0 },
+        uGlitchMode: { value: 0.0 },
+        uNightVision: { value: 0.0 }
     },
     transparent: false,
     vertexShader: landscapeVertexShader,
@@ -188,35 +375,37 @@ const backgroundCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 backgroundCamera.position.z = 0.5;
 
 // ------------------- Player Plane -------------------
-// playerPlane wordt gedefinieerd in de model loading sectie hierboven
 
 // ------------------- Ringen System -------------------
 const rings = [];
 const ringPositions = [
-    { x: 0, y: 20, z: -30 },    // Was -20, nu -30
-    { x: 8, y: 40, z: -65 },    // Was -40, nu -65  
-    { x: -5, y: 50, z: -100 },  // Was -60, nu -100
-    { x: 12, y: 55, z: -140 },  // Was -85, nu -140
-    { x: -8, y: 70, z: -180 },  // Was -110, nu -180
-    { x: 3, y: 60, z: -225 },   // Was -135, nu -225
-    { x: -10, y: 70, z: -270 }, // Was -160, nu -270
-    { x: 6, y: 80, z: -320 },   // Was -190, nu -320
-    { x: -3, y: 60, z: -370 },  // Was -220, nu -370
-    { x: 0, y: 70, z: -425 }    // Was -250, nu -425
+    { x: 0, y: 20, z: -30 },
+    { x: 8, y: 40, z: -65 },
+    { x: -5, y: 50, z: -100 },
+    { x: 12, y: 55, z: -140 },
+    { x: -8, y: 70, z: -180 },
+    { x: 3, y: 60, z: -225 },
+    { x: -10, y: 70, z: -270 },
+    { x: 6, y: 80, z: -320 },
+    { x: -3, y: 60, z: -370 },
+    { x: 0, y: 70, z: -425 }
 ];
 
-const ringGeometry = new THREE.TorusGeometry(4, 0.4, 8, 100); // Groter gemaakt: radius 3->4, tube 0.3->0.4
+let isStorming = false;
+let nextRingIndex = 0;
+
+const ringGeometry = new THREE.TorusGeometry(4, 0.4, 8, 100);
 const ringMaterial = new THREE.MeshBasicMaterial({ 
     color: 0x00ffff, 
     transparent: true, 
-    opacity: 0.9, // Meer zichtbaar gemaakt
+    opacity: 0.9,
     wireframe: true 
 });
 
 ringPositions.forEach((pos, index) => {
     const ring = new THREE.Mesh(ringGeometry, ringMaterial.clone());
     ring.position.set(pos.x, pos.y, pos.z);
-    ring.rotation.x = Math.PI / 90; // Roteer zodat je er doorheen kunt vliegen
+    ring.rotation.x = Math.PI / 90;
     ring.userData = { 
         passed: false, 
         index: index,
@@ -226,7 +415,7 @@ ringPositions.forEach((pos, index) => {
     scene.add(ring);
 });
 
-let currentTimeOfDay = 1.0; // Start bij volledig licht
+let currentTimeOfDay = 1.0;
 let targetTimeOfDay = 1.0;
 const timeTransitionSpeed = 0.02;
 
@@ -234,9 +423,10 @@ const timeTransitionSpeed = 0.02;
 const planePosition = { x: 0, y: 0, z: 0 };
 const velocity = { x: 0, y: 0, z: 0 };
 let planeRotation = 0;
-let bankingVelocity = 0; // Smooth banking voor het kantelen van het vliegtuig
-let baseSpeed = 0.15; // Basis snelheid
-let speedMultiplier = 1.0; // Snelheidsmultiplier gebaseerd op ringen
+let bankingVelocity = 0;
+let baseSpeed = 0.15;
+let speedMultiplier = 1.0;
+const maxAltitude = 150;
 
 const keys = {};
 window.addEventListener('keydown', (event) => {
@@ -245,31 +435,103 @@ window.addEventListener('keydown', (event) => {
 window.addEventListener('keyup', (event) => {
     keys[event.code] = false;
     
-    // Reset alle ringen met R toets
     if (event.code === 'KeyR') {
         resetGame();
     }
     
-    // Escape om terug naar startscherm te gaan
     if (event.code === 'Escape') {
         backToStartScreen();
     }
+    
+    if (isFreeFlightMode) {
+        if (event.code === 'Digit1') {
+            targetTimeOfDay = 1.0;
+            isStorming = false;
+            shaderMaterial.uniforms.uSpeedMultiplier.value = 0.0;
+            console.log("☀️ Dag modus geactiveerd!");
+        }
+        if (event.code === 'Digit2') {
+            targetTimeOfDay = 0.1;
+            isStorming = false;
+            shaderMaterial.uniforms.uSpeedMultiplier.value = 0.0;
+            console.log("🌙 Nacht modus geactiveerd!");
+        }
+        if (event.code === 'Digit3') {
+            targetTimeOfDay = 0.2;
+            isStorming = true;
+            shaderMaterial.uniforms.uSpeedMultiplier.value = 1.5;
+            console.log("⛈️ Storm modus geactiveerd!");
+        }
+    }
+    
+    if (isFreeFlightMode) {
+        if (event.code === 'Equal' || event.code === 'NumpadAdd') {
+            speedMultiplier = Math.min(speedMultiplier + 0.5, 10.0);
+            updateSpeedThrottle();
+            console.log(`🚀 Snelheid verhoogd naar ${speedMultiplier.toFixed(1)}x`);
+        }
+        if (event.code === 'Minus' || event.code === 'NumpadSubtract') {
+            speedMultiplier = Math.max(speedMultiplier - 0.5, 1.0);
+            updateSpeedThrottle();
+            console.log(`🐌 Snelheid verlaagd naar ${speedMultiplier.toFixed(1)}x`);
+        }
+    }
 });
+
+function backToStartScreen() {
+    gameStarted = false;
+    isFreeFlightMode = false;
+    
+    startScreen.classList.remove('hidden');
+    endScreen.classList.add('hidden');
+    gameArea.classList.add('hidden');
+    
+    if (speedThrottle) {
+        speedThrottle.style.display = 'none';
+    }
+    
+    resetGame();
+    
+    console.log("🏠 Terug naar startscherm");
+}
 
 function resetGame() {
     rings.forEach(ring => {
         ring.userData.passed = false;
         ring.userData.glowIntensity = 0;
         ring.material.color.setHex(0x00ffff);
-        ring.material.opacity = 0.9; // Updated naar nieuwe default opacity
+        ring.material.opacity = 0.9;
+        ring.visible = !isFreeFlightMode;
     });
     currentTimeOfDay = 1.0;
     targetTimeOfDay = 1.0;
     
-    // Reset snelheid
-    speedMultiplier = 1.0;
+    isStorming = false;
+    nextRingIndex = 0;
     
-    // Reset alle ring effecten
+    gameTime = 0;
+    gameEnded = false;
+    allRingsCompleted = false;
+    lastRingReached = false;
+    lastRingTimer = 0;
+    isFinishingFlight = false;
+    lastRingPassed = false;
+    
+    if (finishTimeout) {
+        clearTimeout(finishTimeout);
+        finishTimeout = null;
+    }
+    
+    hideFinishCountdown();
+    
+    updateScore();
+    
+    if (isFreeFlightMode) {
+        speedMultiplier = 2.0;
+    } else {
+        speedMultiplier = 1.0;
+    }
+    
     shaderMaterial.uniforms.uSpeedMultiplier.value = 0.0;
     shaderMaterial.uniforms.uColorFilter.value.set(1, 1, 1);
     shaderMaterial.uniforms.uPsychedelicMode.value = 0.0;
@@ -277,7 +539,6 @@ function resetGame() {
     shaderMaterial.uniforms.uGlitchMode.value = 0.0;
     shaderMaterial.uniforms.uNightVision.value = 0.0;
     
-    // Reset vliegtuig positie
     planePosition.x = 0;
     planePosition.y = 0;
     planePosition.z = 0;
@@ -285,19 +546,180 @@ function resetGame() {
     velocity.y = 0;
     velocity.z = 0;
     planeRotation = 0;
-    bankingVelocity = 0; // Reset ook de banking velocity
+    bankingVelocity = 0;
+    
+    updateScore();
+    if (score) {
+        score.style.color = 'white';
+        score.style.fontSize = '1em';
+        score.style.textShadow = 'none';
+    }
+    if (speedDisplay) speedDisplay.textContent = '1.0';
+    if (altitudeDisplay) altitudeDisplay.textContent = '0';
+    if (timerDisplay) {
+        timerDisplay.style.fontSize = '1em';
+        timerDisplay.style.color = 'white';
+    }
+    updateTimerDisplay();
+    updateSpeedThrottle();
     
     console.log('Spel gereset!');
 }
 
-function backToStartScreen() {
-    gameStarted = false;
-    startScreen.classList.remove('hidden');
-    resetGame();
+function updateTimerDisplay() {
+    const currentTimer = document.getElementById('timer');
+    
+    if (currentTimer && !gameEnded) {
+        if (isFreeFlightMode) {
+            currentTimer.textContent = "1=Dag | 2=Nacht | 3=Storm | +=Sneller | -=Langzamer";
+            currentTimer.style.color = '#ffaa00';
+            currentTimer.style.fontSize = '0.8em';
+        } else {
+            const minutes = Math.floor(gameTime / 60);
+            const seconds = Math.floor(gameTime % 60);
+            currentTimer.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            currentTimer.style.color = 'white';
+            currentTimer.style.fontSize = '1em';
+        }
+    }
+}
+
+function updateSpeedThrottle() {
+    if (!throttleFill || !throttleHandle || !throttleValue) return;
+    
+    const minSpeed = 1.0;
+    const maxSpeed = 10.0;
+    const percentage = Math.min(Math.max((speedMultiplier - minSpeed) / (maxSpeed - minSpeed) * 100, 0), 100);
+    
+    throttleFill.style.height = `${percentage}%`;
+    throttleHandle.style.bottom = `${percentage}%`;
+    throttleValue.textContent = `${speedMultiplier.toFixed(1)}x`;
+    
+    if (speedMultiplier > 5.0) {
+        throttleValue.style.color = '#ff6600';
+        throttleValue.style.textShadow = '0 0 10px rgba(255, 102, 0, 0.8)';
+    } else if (speedMultiplier > 2.0) {
+        throttleValue.style.color = '#ffff00';
+        throttleValue.style.textShadow = '0 0 10px rgba(255, 255, 0, 0.8)';
+    } else {
+        throttleValue.style.color = '#ffffff';
+        throttleValue.style.textShadow = '0 0 10px rgba(0, 255, 255, 0.8)';
+    }
+}
+
+let isDragging = false;
+
+function initializeThrottle() {
+    if (!speedThrottle) return;
+    
+    function handleThrottleInteraction(event) {
+        const throttleTrack = speedThrottle.querySelector('.throttle-track');
+        if (!throttleTrack) return;
+        
+        const rect = throttleTrack.getBoundingClientRect();
+        const y = event.clientY - rect.top;
+        const height = rect.height;
+        
+        let percentage = Math.max(0, Math.min(100, (height - y) / height * 100));
+        
+        const minSpeed = 1.0;
+        const maxSpeed = 10.0;
+        speedMultiplier = minSpeed + (percentage / 100) * (maxSpeed - minSpeed);
+        
+        speedMultiplier = Math.round(speedMultiplier * 10) / 10;
+        
+        updateSpeedThrottle();
+        console.log(`🎛️ Throttle aangepast naar ${speedMultiplier.toFixed(1)}x`);
+    }
+    
+    speedThrottle.addEventListener('mousedown', (event) => {
+        isDragging = true;
+        handleThrottleInteraction(event);
+        event.preventDefault();
+    });
+    
+    document.addEventListener('mousemove', (event) => {
+        if (isDragging) {
+            handleThrottleInteraction(event);
+        }
+    });
+    
+    document.addEventListener('mouseup', () => {
+        isDragging = false;
+    });
+    
+    speedThrottle.addEventListener('touchstart', (event) => {
+        isDragging = true;
+        const touch = event.touches[0];
+        const mouseEvent = new MouseEvent('mousedown', {
+            clientX: touch.clientX,
+            clientY: touch.clientY
+        });
+        handleThrottleInteraction(mouseEvent);
+        event.preventDefault();
+    });
+    
+    document.addEventListener('touchmove', (event) => {
+        if (isDragging && event.touches.length > 0) {
+            const touch = event.touches[0];
+            const mouseEvent = new MouseEvent('mousemove', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            handleThrottleInteraction(mouseEvent);
+        }
+    });
+    
+    document.addEventListener('touchend', () => {
+        isDragging = false;
+    });
+}
+
+function startFinishCountdown() {
+    if (!finishCountdown || !countdownNumber) return;
+    
+    let count = 3;
+    finishCountdown.classList.remove('hidden');
+    
+    function updateCountdown() {
+        countdownNumber.textContent = count;
+        countdownNumber.style.animation = 'none';
+        // Force reflow to restart animation
+        countdownNumber.offsetHeight;
+        countdownNumber.style.animation = 'numberPulse 1s ease-in-out';
+        
+        if (count > 1) {
+            count--;
+            setTimeout(updateCountdown, 1000);
+        } else {
+            setTimeout(() => {
+                if (finishCountdown) {
+                    finishCountdown.classList.add('hidden');
+                }
+            }, 1000);
+        }
+    }
+    
+    updateCountdown();
+}
+
+function hideFinishCountdown() {
+    if (finishCountdown) {
+        finishCountdown.classList.add('hidden');
+    }
+}
+
+function updateScore() {
+    const ringsPassedCount = rings.filter(r => r.userData.passed).length;
+    const currentScore = document.getElementById('score');
+    if (currentScore) {
+        currentScore.textContent = ringsPassedCount;
+    }
+    return ringsPassedCount;
 }
 
 function updatePlaneMovement() {
-    if (!gameStarted || !playerPlane) return; // Check if plane model is loaded
+    if ((!gameStarted && !isFinishingFlight) || !playerPlane) return;
     
     if (keys['KeyA'] || keys['ArrowLeft']) {
         planeRotation -= 0.05; 
@@ -309,14 +731,11 @@ function updatePlaneMovement() {
     const forwardX = Math.sin(planeRotation);
     const forwardZ = -Math.cos(planeRotation); 
     
-    // Automatische voorwaartse beweging met snelheidsmultiplier
     let moveSpeed = baseSpeed * speedMultiplier;
     
-    // W toets voor extra snelheid
     if (keys['KeyW'] ) {
         moveSpeed = moveSpeed * 1.5; 
     }
-    // S toets voor remmen/achteruit
     if (keys['KeyS'] ) {
         moveSpeed = moveSpeed * 0.3; 
     }
@@ -330,39 +749,52 @@ function updatePlaneMovement() {
     planePosition.y += velocity.y;
     velocity.y *= 0.95;
     
-    // Dynamische grondcollisie - nu met echte shader terrein hoogte
+    if (planePosition.y > maxAltitude) {
+        planePosition.y = maxAltitude;
+        velocity.y = Math.min(0, velocity.y);
+        
+        if (velocity.y >= 0) {
+            velocity.y = -0.01;
+        }
+        
+        if (!window.altitudeLimitWarningShown) {
+            console.log(`🚨 Maximum hoogte bereikt! (${maxAltitude}m) - Vliegtuig kan niet hoger.`);
+            window.altitudeLimitWarningShown = true;
+            
+            setTimeout(() => {
+                window.altitudeLimitWarningShown = false;
+            }, 5000);
+        }
+    }
+    
     const terrainHeight = getTerrainHeight(planePosition.x, planePosition.z);
     const minHeightAboveTerrain = 0.5;
     const minGroundLevel = terrainHeight + minHeightAboveTerrain;
     
     if (planePosition.y < minGroundLevel) {
         planePosition.y = minGroundLevel;
-        velocity.y = Math.max(0, velocity.y); // Stop negatieve velocity bij grond
+        velocity.y = Math.max(0, velocity.y);
         
-        // Zachte bounce effect bij grondcontact
         if (velocity.y <= 0) {
-            velocity.y = 0.01; // Kleine upward bounce
+            velocity.y = 0.01;
         }
     }
     
     playerPlane.position.set(planePosition.x, planePosition.y, planePosition.z);
     
-    // Banking rotatie voor links/rechts draaien (nu met smooth velocity)
     let targetBanking = 0;
     if (keys['KeyA'] || keys['ArrowLeft']) {
-        targetBanking = 0.3; // Links kantelen
+        targetBanking = 0.3;
     } else if (keys['KeyD'] || keys['ArrowRight']) {
-        targetBanking = -0.3;  // Rechts kantelen
+        targetBanking = -0.3;
     }
     
-    // Smooth banking met velocity (net zoals bij verticale beweging)
-    const bankingDifference = targetBanking - (bankingVelocity * 15); // 15 is scale factor
-    bankingVelocity += bankingDifference * 0.008; // Geleidelijke aanpassing
-    bankingVelocity *= 0.9; // Smooth fade out
+    const bankingDifference = targetBanking - (bankingVelocity * 15);
+    bankingVelocity += bankingDifference * 0.008;
+    bankingVelocity *= 0.9;
     
     const bankingRotation = bankingVelocity * 15;
     
-    // Pitch rotatie voor omhoog/omlaag beweging
     let pitchRotation = 0;
     if (keys['Space']|| keys['ArrowUp']) {
         pitchRotation = 0.15;
@@ -370,15 +802,12 @@ function updatePlaneMovement() {
         pitchRotation = -0.15;
     }
     
-    // Ook gebaseerd op verticale snelheid
     pitchRotation += velocity.y * 2.0;
     
-    // Gebruik quaternions voor correcte rotatie combinatie
     const yawQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -planeRotation);
     const pitchQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), pitchRotation);
     const rollQuaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), bankingRotation);
     
-    // Combineer de rotaties in de juiste volgorde: eerst yaw, dan pitch, dan roll
     const finalQuaternion = new THREE.Quaternion()
         .multiplyQuaternions(yawQuaternion, pitchQuaternion)
         .multiply(rollQuaternion);
@@ -386,8 +815,6 @@ function updatePlaneMovement() {
     playerPlane.quaternion.copy(finalQuaternion);
 }
 
-// ------------------- Terrain Height Calculation -------------------
-// Exacte implementatie van shader Hash en Noise functies
 const MOD2 = { x: 3.07965, y: 7.4235 };
 
 function fract(x) {
@@ -398,34 +825,22 @@ function fract(x) {
 
 function Hash(p) {
     if (typeof p === 'number') {
-        // Hash(float p) GLSL: 
-        // vec2 p2 = fract(vec2(p)/MOD2);
-        // p2 += dot(p2.yx, p2.xy+19.19);
-        // return fract(p2.x*p2.y);
         
         let p2 = {
             x: fract(p / MOD2.x),
             y: fract(p / MOD2.y)
         };
         
-        // dot(p2.yx, p2.xy+19.19) waar p2.yx = (p2.y, p2.x) en p2.xy+19.19 = (p2.x + 19.19, p2.y + 19.19)
-        // dot product: p2.y * (p2.x + 19.19) + p2.x * (p2.y + 19.19)
         const dotVal = p2.y * (p2.x + 19.19) + p2.x * (p2.y + 19.19);
         p2.x += dotVal;
         p2.y += dotVal;
         
         return fract(p2.x * p2.y);
     } else {
-        // Hash(vec2 p) GLSL:
-        // p = fract(p / MOD2);
-        // p += dot(p.xy, p.yx+19.19);
-        // return fract(p.x * p.y);
         
         let px = fract(p.x / MOD2.x);
         let py = fract(p.y / MOD2.y);
         
-        // dot(p.xy, p.yx+19.19) waar p.xy = (px, py) en p.yx+19.19 = (py + 19.19, px + 19.19) 
-        // dot product: px * (py + 19.19) + py * (px + 19.19)
         const dotVal = px * (py + 19.19) + py * (px + 19.19);
         px += dotVal;
         py += dotVal;
@@ -438,13 +853,11 @@ function Noise(x) {
     const p = { x: Math.floor(x.x), y: Math.floor(x.y) };
     const f = { x: x.x - p.x, y: x.y - p.y };
     
-    // Smooth interpolation f = f*f*(3.0-2.0*f)
     f.x = f.x * f.x * (3.0 - 2.0 * f.x);
     f.y = f.y * f.y * (3.0 - 2.0 * f.y);
     
     const n = p.x + p.y * 57.0;
     
-    // Bilinear interpolation zoals in shader
     const h1 = Hash(n + 0.0);
     const h2 = Hash(n + 1.0);
     const h3 = Hash(n + 57.0);
@@ -457,7 +870,6 @@ function Noise(x) {
 }
 
 function getTerrainHeight(x, z) {
-    // Exacte implementatie van shader Terrain functie (Map gebruikt p.y - Terrain(p.xz).x)
     let pos = { x: x * 0.003, y: z * 0.003 };
     let w = 50.0;
     let f = 0.0;
@@ -472,162 +884,149 @@ function getTerrainHeight(x, z) {
     return f;
 }
 
-// ------------------- Ring Collision Check -------------------
 function checkRingCollisions() {
-    if (!playerPlane) return; // Check if plane model is loaded
+    if (!playerPlane || isFreeFlightMode) return;
     
-    rings.forEach(ring => {
+    rings.forEach((ring, index) => {
         if (!ring.userData.passed) {
             const ringCenter = ring.position;
             const planePos = playerPlane.position;
             
-            // Simpele en betrouwbare collision detectie
             const dx = planePos.x - ringCenter.x;
             const dy = planePos.y - ringCenter.y;
             const dz = planePos.z - ringCenter.z;
             
-            // Afstand tot ring centrum
             const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
             
-            // Veel ruimere en simpelere check - gewoon binnen een sphere rond de ring
-            const collisionRadius = 6.0; // Grote collision zone
+            const collisionRadius = 6.0;
             
             if (distance < collisionRadius) {
-                // Extra check: zijn we redelijk binnen het vlak van de ring? (Y hoogte)
                 const heightDiff = Math.abs(dy);
                 const horizontalDist = Math.sqrt(dx * dx + dz * dz);
                 
-                // Veel ruimere toleranties
                 if (heightDiff < 4.0 && horizontalDist < 6.0) {
                     ring.userData.passed = true;
                     ring.userData.glowIntensity = 1.0;
                     
-                    // Verhoog snelheid bij elke ring (max 10 ringen)
+                    if (index === nextRingIndex) {
+                        if (isStorming) {
+                            isStorming = false;
+                            shaderMaterial.uniforms.uSpeedMultiplier.value = 0.0;
+                            targetTimeOfDay = 0.8;
+                            console.log("⛅ Storm gestopt! Je bent weer op koers!");
+                        }
+                        nextRingIndex++;
+                        console.log(`✅ Ring ${index + 1} gepakt in juiste volgorde!`);
+                    } else {
+                        console.log(`⚠️ Ring ${index + 1} gepakt, maar niet in volgorde. Volgende verwacht: ${nextRingIndex + 1}`);
+                        
+                        if (index > nextRingIndex && isStorming) {
+                            isStorming = false;
+                            shaderMaterial.uniforms.uSpeedMultiplier.value = 0.0;
+                            targetTimeOfDay = 0.8;
+                            console.log("⛅ Storm gestopt! Je hebt een ring verder gepakt.");
+                        }
+                        
+                        nextRingIndex = index + 1;
+                    }
+                    
                     const ringsPassedCount = rings.filter(r => r.userData.passed).length;
-                    speedMultiplier = 1.0 + (ringsPassedCount * 0.5); // +50% per ring
+                    speedMultiplier = 1.0 + (ringsPassedCount * 0.5);
+                    updateSpeedThrottle();
                     
-                    // Unieke effecten per ring
-                    activateRingEffect(ring.userData.index);
-                    
-                    // Verander ring kleur per type
-                    const ringColors = [0xff4444, 0x44ff44, 0xff44ff, 0x4444ff, 0xffff44, 0x44ffff, 0xff8844, 0x88ff44, 0xff4488, 0x4488ff];
-                    ring.material.color.setHex(ringColors[ring.userData.index] || 0x00ff00);
+                    ring.material.color.setHex(0x00ff00);
                     
                     console.log(`🎯 Ring ${ring.userData.index + 1}/10 gepasseerd! Snelheid: ${speedMultiplier.toFixed(1)}x`);
-                    score.textContent = ringsPassedCount;
+                    updateScore();
                     
-                    // Check voor game completion
-                    if (ringsPassedCount >= 10) {
+                    if (ringsPassedCount >= 10 && !allRingsCompleted) {
+                        allRingsCompleted = true;
+                        gameEnded = true;
                         console.log("🎉 Gefeliciteerd! Alle ringen gepasseerd!");
-                        setTimeout(() => {
-                            alert("Gefeliciteerd! Je hebt alle 10 ringen gepasseerd!\nDruk op R om opnieuw te spelen.");
-                        }, 1000);
+                        console.log(`⏱️ Voltooitijd: ${Math.floor(gameTime / 60)}:${Math.floor(gameTime % 60).toString().padStart(2, '0')}`);
+                        console.log("✈️ Je kunt nog 3 seconden doorvliegen...");
+                        
+                        if (finishTimeout) {
+                            clearTimeout(finishTimeout);
+                        }
+                        
+                        isFinishingFlight = true;
+                        startFinishCountdown();
+                        
+                        finishTimeout = setTimeout(() => {
+                            isFinishingFlight = false;
+                            finishTimeout = null;
+                            hideFinishCountdown();
+                            showEndScreen(true);
+                        }, 3000);
+                    }
+                    
+                    if (ring.userData.index === 9 && !lastRingReached) {
+                        lastRingReached = true;
+                        lastRingPassed = true;
+                        lastRingTimer = 0;
+                        console.log("🏁 Laatste ring gepasseerd! Je kunt nog 3 seconden doorvliegen...");
+                        console.log(`⏱️ Tijd: ${Math.floor(gameTime / 60)}:${Math.floor(gameTime % 60).toString().padStart(2, '0')}`);
+                        
+                        startFinishCountdown();
+                        
+                        if (timerDisplay) {
+                            timerDisplay.style.color = '#00ff00';
+                            timerDisplay.style.fontSize = '1.2em';
+                        }
                     }
                 }
             }
         }
         
-        // Animeer de glow intensity
         if (ring.userData.glowIntensity > 0) {
             ring.userData.glowIntensity *= 0.95;
             ring.material.opacity = 0.8 + ring.userData.glowIntensity * 0.2;
         }
     });
+    
+    checkMissedRings();
 }
 
-function activateRingEffect(ringIndex) {
-    // Reset alle effecten eerst (behalve tijdelijk effecten)
-    const effects = {
-        speed: shaderMaterial.uniforms.uSpeedMultiplier,
-        color: shaderMaterial.uniforms.uColorFilter,
-        psychedelic: shaderMaterial.uniforms.uPsychedelicMode,
-        waves: shaderMaterial.uniforms.uWaveIntensity,
-        glitch: shaderMaterial.uniforms.uGlitchMode,
-        nightVision: shaderMaterial.uniforms.uNightVision
-    };
+function checkMissedRings() {
+    if (!playerPlane || isFreeFlightMode) return;
     
-    switch(ringIndex) {
-        case 0: // Storm effecten - rood
-            effects.speed.value = 1.0;
-            setTimeout(() => { effects.speed.value = 0.0; }, 8000);
-            console.log("⛈️ Storm geactiveerd!");
-            break;
+    if (nextRingIndex < rings.length) {
+        const nextRing = rings[nextRingIndex];
+        const planeZ = playerPlane.position.z;
+        const ringZ = nextRing.position.z;
+        
+        if (planeZ < ringZ - 15 && !nextRing.userData.passed) {
+            console.log(`❌ Ring ${nextRingIndex + 1} gemist!`);
             
-        case 1: // Kleurfilter - groen  
-            effects.color.value.set(0.3, 1.2, 0.7);
-            setTimeout(() => { effects.color.value.set(1, 1, 1); }, 8000);
-            console.log("🎨 Groen kleurfilter geactiveerd!");
-            break;
+            nextRing.material.color.setHex(0xff0000);
             
-        case 2: // Psychedelische modus - magenta
-            effects.psychedelic.value = 1.0;
-            setTimeout(() => { effects.psychedelic.value = 0.0; }, 10000);
-            console.log("🌈 Psychedelische modus geactiveerd!");
-            break;
+            if (nextRingIndex === 9 && !lastRingReached) {
+                lastRingReached = true;
+                lastRingPassed = false;
+                lastRingTimer = 0;
+                console.log("🏁 Laatste ring gemist! Je hebt 3 seconden om terug te gaan...");
+                console.log(`⏱️ Tijd: ${Math.floor(gameTime / 60)}:${Math.floor(gameTime % 60).toString().padStart(2, '0')}`);
+                
+                startFinishCountdown();
+                
+                if (timerDisplay) {
+                    timerDisplay.textContent = `Laatste ring gemist! Tijd: 3.0s`;
+                    timerDisplay.style.color = '#ff6600';
+                    timerDisplay.style.fontSize = '1.2em';
+                }
+            } else {
+                if (!isStorming) {
+                    isStorming = true;
+                    shaderMaterial.uniforms.uSpeedMultiplier.value = 1.5;
+                    targetTimeOfDay = 0.1;
+                    console.log("⛈️ STORM BEGINT! Pak de volgende ring om de storm te stoppen!");
+                }
+            }
             
-        case 3: // Golfeffecten - blauw
-            effects.waves.value = 0.8;
-            setTimeout(() => { effects.waves.value = 0.0; }, 7000);
-            console.log("🌊 Golfeffecten geactiveerd!");
-            break;
-            
-        case 4: // Glitch modus - geel
-            effects.glitch.value = 0.6;
-            setTimeout(() => { effects.glitch.value = 0.0; }, 6000);
-            console.log("⚡ Glitch modus geactiveerd!");
-            break;
-            
-        case 5: // Nachtzicht - cyaan  
-            effects.nightVision.value = 1.5;
-            setTimeout(() => { effects.nightVision.value = 0.0; }, 12000);
-            console.log("👁️ Nachtzicht geactiveerd!");
-            break;
-            
-        case 6: // Extra storm - oranje
-            effects.speed.value = 1.2;
-            effects.color.value.set(1.3, 0.8, 0.4);
-            setTimeout(() => { 
-                effects.speed.value = 0.0; 
-                effects.color.value.set(1, 1, 1); 
-            }, 6000);
-            console.log("🌪️ Intense storm geactiveerd!");
-            break;
-            
-        case 7: // Groene mist - lichtgroen
-            effects.color.value.set(0.5, 1.5, 0.8);
-            effects.waves.value = 0.4;
-            setTimeout(() => { 
-                effects.color.value.set(1, 1, 1); 
-                effects.waves.value = 0.0; 
-            }, 9000);
-            console.log("🌫️ Groene mist geactiveerd!");
-            break;
-            
-        case 8: // Roze droomwereld - roze
-            effects.psychedelic.value = 0.7;
-            effects.color.value.set(1.4, 0.6, 1.2);
-            setTimeout(() => { 
-                effects.psychedelic.value = 0.0; 
-                effects.color.value.set(1, 1, 1); 
-            }, 8000);
-            console.log("💗 Roze droomwereld geactiveerd!");
-            break;
-            
-        case 9: // Finale effect - blauw
-            effects.glitch.value = 0.8;
-            effects.nightVision.value = 1.0;
-            effects.waves.value = 0.6;
-            setTimeout(() => { 
-                effects.glitch.value = 0.0; 
-                effects.nightVision.value = 0.0; 
-                effects.waves.value = 0.0; 
-            }, 15000);
-            console.log("🎆 FINALE EFFECT! Alle effecten gecombineerd!");
-            break;
+            nextRingIndex++;
+        }
     }
-    
-    // Dag/nacht wissel blijft voor alle ringen
-    targetTimeOfDay = targetTimeOfDay > 0.5 ? 0.1 : 0.9;
 }
 
 // ------------------- Resize -------------------
@@ -640,12 +1039,11 @@ window.addEventListener('resize', ()=>{
 
 // ------------------- Camera & Rendering Functions -------------------
 function updateCamera() {
-    if (!playerPlane) return; // Check if plane model is loaded
+    if (!playerPlane) return;
     
     const planeRotationSin = Math.sin(planeRotation);
     const planeRotationCos = Math.cos(planeRotation);
     
-    // Camera positie voor shader
     const cameraOffset = new THREE.Vector3(
         -planeRotationSin * 3, 
         1,                           
@@ -660,11 +1058,9 @@ function updateCamera() {
     );
     const cameraTarget = playerPlane.position.clone().add(lookAhead);
     
-    // Update shader uniforms
     shaderMaterial.uniforms.uCameraPos.value.copy(cameraPos);
     shaderMaterial.uniforms.uCameraTarget.value.copy(cameraTarget);
     
-    // 3D Camera positie
     const camera3DOffset = new THREE.Vector3(
         -planeRotationSin * 5, 
         2,                             
@@ -684,39 +1080,51 @@ function updateShaderUniforms(time) {
     shaderMaterial.uniforms.iTime.value = time * 0.001;
     shaderMaterial.uniforms.uTimeOfDay.value = currentTimeOfDay;
     
-    // Update animation mixer
     if (mixer) {
-        mixer.update(0.016); // ~60fps
+        mixer.update(0.016);
     }
 }
 
 function animateRings(time) {
+    if (isFreeFlightMode) return;
+    
     rings.forEach((ring, index) => {
         ring.rotation.z += 0.01;
         
-        // Pulseer effect voor niet-gepasseerde ringen
         if (!ring.userData.passed) {
             const pulse = Math.sin(time * 0.003 + index) * 0.1 + 1.0;
             ring.scale.setScalar(pulse);
             
-            // Visuele feedback als vliegtuig dichtbij is
             if (playerPlane) {
                 const distance = playerPlane.position.distanceTo(ring.position);
-                if (distance < 10.0) { // Ruimere detection zone voor visuele feedback
-                    const proximity = 1.0 - (distance / 10.0); // 0 tot 1
-                    ring.material.opacity = 0.9 + proximity * 0.4; // Wordt veel helderder
+                if (distance < 10.0) {
+                    const proximity = 1.0 - (distance / 10.0);
+                    ring.material.opacity = 0.9 + proximity * 0.4;
                     
-                    // Extra glow effect voor zeer dichtbije ringen
                     if (distance < 6.0) {
-                        ring.material.color.setHex(0x00ffaa); // Groeniger glow
+                        const planeZ = playerPlane.position.z;
+                        const ringZ = ring.position.z;
+                        
+                        if (planeZ < ringZ - 15) {
+                            ring.material.color.setHex(0xff4444);
+                        } else {
+                            ring.material.color.setHex(0x00ffaa);
+                        }
+                        
                         const glowPulse = Math.sin(time * 0.02) * 0.3 + 0.7;
                         ring.scale.setScalar(pulse + glowPulse * 0.3);
                     }
                 } else {
-                    // Reset naar normale staat als je verder weg bent
                     if (!ring.userData.passed) {
                         ring.material.opacity = 0.9;
-                        ring.material.color.setHex(0x00ffff);
+                        const planeZ = playerPlane.position.z;
+                        const ringZ = ring.position.z;
+                        
+                        if (planeZ < ringZ - 15) {
+                            ring.material.color.setHex(0xff0000);
+                        } else {
+                            ring.material.color.setHex(0x00ffff);
+                        }
                     }
                 }
             }
@@ -725,38 +1133,93 @@ function animateRings(time) {
 }
 
 function render() {
-    // Render shader achtergrond eerst
     renderer.autoClear = false;
     renderer.clear();
     renderer.render(backgroundScene, backgroundCamera);
     
-    // Render 3D objecten eroverheen
     renderer.clearDepth();
     renderer.render(scene, camera);
 }
 
-// ------------------- Animate -------------------
 function animate(time){
     animationId = requestAnimationFrame(animate);
     
-    // Game logic (alleen als spel gestart is)
-    if (gameStarted) {
+    if ((gameStarted && !gameEnded) || isFinishingFlight) {
+        gameTime += 0.016;
+        updateTimerDisplay();
+        
+        if (!isFreeFlightMode) {
+            if (lastRingReached) {
+                lastRingTimer += 0.016;
+                
+                if (timerDisplay) {
+                    const remainingTime = Math.max(0, 3 - lastRingTimer);
+                    if (lastRingPassed) {
+                        timerDisplay.textContent = `Eindigt in: ${remainingTime.toFixed(1)}s`;
+                        timerDisplay.style.color = '#00ff00';
+                    } else {
+                        timerDisplay.textContent = `Laatste kans: ${remainingTime.toFixed(1)}s`;
+                        timerDisplay.style.color = '#ff6600';
+                    }
+                    timerDisplay.style.fontSize = '1.2em';
+                }
+                
+                if (lastRingTimer >= 3.0) {
+                    gameEnded = true;
+                    
+                    const ringsPassedCount = rings.filter(r => r.userData.passed).length;
+                    
+                    if (finishTimeout) {
+                        clearTimeout(finishTimeout);
+                    }
+                    
+                    hideFinishCountdown();
+                    if (ringsPassedCount >= 10) {
+                        showEndScreen(true);
+                    } else {
+                        showEndScreen(false);
+                    }
+                    return;
+                }
+            }
+            
+            checkRingCollisions();
+        }
         updatePlaneMovement();
-        checkRingCollisions();
         currentTimeOfDay += (targetTimeOfDay - currentTimeOfDay) * timeTransitionSpeed;
         
-        // Update speed display
         if (speedDisplay) {
             speedDisplay.textContent = speedMultiplier.toFixed(1);
+            if (speedMultiplier > 5.0) {
+                speedDisplay.style.color = '#ff6600';
+            } else if (speedMultiplier > 2.0) {
+                speedDisplay.style.color = '#ffff00';
+            } else {
+                speedDisplay.style.color = 'white';
+            }
+        }
+        
+        if (altitudeDisplay && playerPlane) {
+            const currentAltitude = Math.max(0, Math.floor(playerPlane.position.y));
+            altitudeDisplay.textContent = currentAltitude;
+            
+            const altitudePercentage = currentAltitude / maxAltitude;
+            if (altitudePercentage > 0.9) {
+                altitudeDisplay.style.color = '#ff3300';
+            } else if (altitudePercentage > 0.7) {
+                altitudeDisplay.style.color = '#ff6600';
+            } else if (altitudePercentage > 0.4) {
+                altitudeDisplay.style.color = '#ffff00';
+            } else {
+                altitudeDisplay.style.color = 'white';
+            }
         }
     }
     
-    // Visuele updates (altijd)
     updateShaderUniforms(time);
     updateCamera();
     animateRings(time);
     render();
 }
 
-// Start de animatie direct
 animate();

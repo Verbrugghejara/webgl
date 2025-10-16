@@ -118,7 +118,7 @@
     opacity: 0.8;
   }
   
-  #startButton {
+  #startButton, #flyFreeButton {
     background: linear-gradient(45deg, #00ffff, #0080ff);
     border: none;
     color: white;
@@ -131,20 +131,328 @@
     box-shadow: 0 4px 15px rgba(0,255,255,0.3);
     text-transform: uppercase;
     letter-spacing: 2px;
+    min-width: 200px;
   }
   
-  #startButton:hover {
+  #flyFreeButton {
+    background: linear-gradient(45deg, #ff6600, #ff9900);
+    box-shadow: 0 4px 15px rgba(255,102,0,0.3);
+  }
+  
+  #startButton:hover, #flyFreeButton:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 25px rgba(0,255,255,0.5);
     background: linear-gradient(45deg, #0080ff, #00ffff);
   }
   
-  #startButton:active {
+  #flyFreeButton:hover {
+    background: linear-gradient(45deg, #ff9900, #ff6600);
+    box-shadow: 0 6px 25px rgba(255,102,0,0.5);
+  }
+  
+  #startButton:active, #flyFreeButton:active {
     transform: translateY(0);
   }
   
+  /* Eindscherm styling */
+  #endScreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: linear-gradient(135deg, rgba(0, 50, 0, 0.9) 0%, rgba(0, 100, 50, 0.9) 100%);
+    backdrop-filter: blur(3px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    z-index: 1001;
+    text-align: center;
+    padding: 20px;
+    box-sizing: border-box;
+    animation: fadeIn 1s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  
+  #endScreen h1 {
+    font-size: 4em;
+    margin: 0 0 20px 0;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    background: linear-gradient(45deg, #00ff00, #ffff00, #00ff00);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: celebrate 2s ease-in-out infinite alternate;
+  }
+  
+  @keyframes celebrate {
+    from { 
+      filter: drop-shadow(0 0 10px #00ff00);
+      transform: scale(1);
+    }
+    to { 
+      filter: drop-shadow(0 0 25px #ffff00);
+      transform: scale(1.05);
+    }
+  }
+  
+  #endScreen .subtitle {
+    font-size: 1.8em;
+    margin-bottom: 40px;
+    opacity: 0.95;
+    color: #ffff00;
+  }
+  
+  .end-stats {
+    background: rgba(0,0,0,0.7);
+    padding: 30px;
+    border-radius: 15px;
+    border: 2px solid rgba(0,255,0,0.6);
+    backdrop-filter: blur(5px);
+    margin-bottom: 30px;
+    min-width: 400px;
+  }
+  
+  .stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 15px 0;
+    font-size: 1.2em;
+  }
+  
+  .stat-label {
+    font-weight: bold;
+    color: #cccccc;
+  }
+  
+  .stat-value {
+    font-weight: bold;
+    color: #00ff00;
+    font-size: 1.1em;
+  }
+  
+  .end-message {
+    max-width: 600px;
+    font-size: 1.1em;
+    line-height: 1.6;
+    margin-bottom: 40px;
+    background: rgba(0,0,0,0.5);
+    padding: 25px;
+    border-radius: 12px;
+    border: 1px solid rgba(0,255,0,0.4);
+  }
+  
+  .end-buttons {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  #playAgainButton, #backToMenuButton {
+    background: linear-gradient(45deg, #00ff00, #00cc00);
+    border: none;
+    color: white;
+    font-size: 1.3em;
+    font-weight: bold;
+    padding: 15px 30px;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0,255,0,0.3);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    min-width: 180px;
+  }
+  
+  #backToMenuButton {
+    background: linear-gradient(45deg, #0080ff, #0060cc);
+    box-shadow: 0 4px 15px rgba(0,128,255,0.3);
+  }
+  
+  #playAgainButton:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 25px rgba(0,255,0,0.5);
+    background: linear-gradient(45deg, #00cc00, #00ff00);
+  }
+  
+  #backToMenuButton:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 25px rgba(0,128,255,0.5);
+    background: linear-gradient(45deg, #0060cc, #0080ff);
+  }
+  
+  #playAgainButton:active, #backToMenuButton:active {
+    transform: translateY(0);
+  }
+
   .hidden {
     display: none !important;
+  }
+  
+  /* Finish countdown styling */
+  .finish-countdown {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1002;
+    text-align: center;
+    background: rgba(0, 0, 0, 0.9);
+    padding: 40px 60px;
+    border-radius: 20px;
+    border: 3px solid rgba(255, 255, 0, 0.8);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 0 30px rgba(255, 255, 0, 0.5);
+    animation: countdownPulse 1s ease-in-out infinite;
+  }
+  
+  @keyframes countdownPulse {
+    0%, 100% { 
+      transform: translate(-50%, -50%) scale(1);
+      box-shadow: 0 0 30px rgba(255, 255, 0, 0.5);
+    }
+    50% { 
+      transform: translate(-50%, -50%) scale(1.05);
+      box-shadow: 0 0 50px rgba(255, 255, 0, 0.8);
+    }
+  }
+  
+  .countdown-text {
+    color: #ffff00;
+    font-size: 2em;
+    font-weight: bold;
+    margin-bottom: 20px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+    letter-spacing: 2px;
+  }
+  
+  .countdown-number {
+    color: #ffffff;
+    font-size: 6em;
+    font-weight: bold;
+    text-shadow: 0 0 20px rgba(255, 255, 0, 0.8);
+    text-stroke: 2px #ffff00;
+    -webkit-text-stroke: 2px #ffff00;
+    animation: numberPulse 1s ease-in-out;
+  }
+  
+  @keyframes numberPulse {
+    0% { 
+      transform: scale(0.8);
+      opacity: 0.5;
+    }
+    50% { 
+      transform: scale(1.2);
+      opacity: 1;
+    }
+    100% { 
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+  
+  /* Snelheidsthrottle styling */
+  .speed-throttle {
+    position: fixed;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1001;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 20px 15px;
+    border-radius: 15px;
+    border: 2px solid rgba(0, 255, 255, 0.5);
+    backdrop-filter: blur(5px);
+    user-select: none;
+    font-family: 'Arial', sans-serif;
+  }
+  
+  .throttle-label {
+    color: #00ffff;
+    font-size: 0.9em;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 10px;
+    letter-spacing: 1px;
+  }
+  
+  .throttle-container {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+  }
+  
+  .throttle-track {
+    position: relative;
+    width: 20px;
+    height: 200px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    border: 1px solid rgba(0, 255, 255, 0.3);
+    cursor: pointer;
+  }
+  
+  .throttle-fill {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 10%;
+    background: linear-gradient(to top, #00ff00, #ffff00, #ff6600);
+    border-radius: 0 0 9px 9px;
+    transition: height 0.2s ease;
+  }
+  
+  .throttle-handle {
+    position: absolute;
+    left: -3px;
+    right: -3px;
+    height: 8px;
+    background: #ffffff;
+    border: 2px solid #00ffff;
+    border-radius: 4px;
+    bottom: 10%;
+    transform: translateY(50%);
+    transition: bottom 0.2s ease;
+    cursor: grab;
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+  }
+  
+  .throttle-handle:active {
+    cursor: grabbing;
+    box-shadow: 0 0 15px rgba(0, 255, 255, 0.8);
+  }
+  
+  .throttle-markers {
+    display: flex;
+    flex-direction: column;
+    height: 200px;
+    position: relative;
+  }
+  
+  .marker {
+    position: absolute;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.8em;
+    font-weight: bold;
+    white-space: nowrap;
+  }
+  
+  .throttle-value {
+    color: #ffffff;
+    font-size: 1.2em;
+    font-weight: bold;
+    text-align: center;
+    margin-top: 10px;
+    text-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
   }
 </style>
 </head>
@@ -167,19 +475,81 @@
       </div>
       
       <div class="control-group">
-        <div class="control-title">🎮 Hoogte</div>
-        <div class="control-desc">SPATIE - Omhoog<br>SHIFT - Omlaag<br>R - Reset spel</div>
+        <div class="control-title">🎮 Hoogte & Snelheid</div>
+        <div class="control-desc">SPATIE - Omhoog<br>SHIFT - Omlaag<br>+ - Sneller<br>- - Langzamer</div>
       </div>
     </div>
     
-    <button id="startButton">Start Spel</button>
+    <div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
+      <button id="startButton">Start Spel</button>
+      <button id="flyFreeButton">Fly Free</button>
+    </div>
   </div>
 
 
   <div id="gameArea" class="hidden">
     <div style="display: flex; gap: 30px; align-items: center;">
-      <h1>Ringen: <span id="score">0</span>/10</h1>
+      <h1 id="scoreLabel">Ringen: <span id="score">0</span>/10</h1>
       <h2>Snelheid: <span id="speed">1.0</span>x</h2>
+      <h2 id="timerLabel">Tijd: <span id="timer">00:00</span></h2>
+    </div>
+    
+    <!-- Grote countdown timer voor einde spel -->
+    <div id="finishCountdown" class="finish-countdown hidden">
+      <div class="countdown-text">Game ends in...</div>
+      <div class="countdown-number" id="countdownNumber">3</div>
+    </div>
+    
+    <!-- Snelheidsthrottle aan rechterkant -->
+    <div id="speedThrottle" class="speed-throttle">
+      <div class="throttle-label">SNELHEID</div>
+      <div class="throttle-container">
+        <div class="throttle-track">
+          <div class="throttle-fill" id="throttleFill"></div>
+          <div class="throttle-handle" id="throttleHandle"></div>
+        </div>
+        <div class="throttle-markers">
+          <div class="marker" style="bottom: 90%;">10x</div>
+          <div class="marker" style="bottom: 70%;">7x</div>
+          <div class="marker" style="bottom: 50%;">5x</div>
+          <div class="marker" style="bottom: 30%;">3x</div>
+          <div class="marker" style="bottom: 10%;">2x</div>
+          <div class="marker" style="bottom: 0%;">1x</div>
+        </div>
+      </div>
+      <div class="throttle-value" id="throttleValue">1.0x</div>
+    </div>
+  </div>
+
+  <!-- Eindscherm -->
+  <div id="endScreen" class="hidden">
+    <h1>🎉 Gefeliciteerd!</h1>
+    <div class="subtitle">Je hebt alle 10 ringen succesvol gepasseerd!</div>
+    
+    <div class="end-stats">
+      <h3 style="color: #00ffff; margin-top: 0;">📊 Jouw Prestatie</h3>
+      <div class="stat-item">
+        <span class="stat-label">Ringen Gepasseerd:</span>
+        <span class="stat-value" id="finalScore">10/10</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Eindsnelheid:</span>
+        <span class="stat-value" id="finalSpeed">6.0x</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Status:</span>
+        <span class="stat-value" style="color: #00ff00;">✅ Voltooid!</span>
+      </div>
+    </div>
+    
+    <div class="end-message">
+      <p>🌟 Geweldig gevlogen! Je hebt alle magische ringen verzameld en het landschap laten transformeren van dag naar nacht.</p>
+      <p>💨 Je eindsnelheid toont aan hoe snel je bent geworden tijdens je vlucht!</p>
+    </div>
+    
+    <div class="end-buttons">
+      <button id="playAgainButton">🔄 Speel Opnieuw</button>
+      <button id="backToMenuButton">🏠 Terug naar Menu</button>
     </div>
   </div>
 
