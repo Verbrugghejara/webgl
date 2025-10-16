@@ -6,6 +6,7 @@ uniform vec3 iResolution;
 uniform vec2 iMouse;
 uniform vec3 uCameraPos;
 uniform vec3 uCameraTarget;
+uniform float uTimeOfDay; // 0 = nacht, 1 = dag
 varying vec2 vUv;
 
 #define THRESHOLD .003
@@ -76,9 +77,46 @@ float FractalNoise(in vec2 xy){
 vec3 GetSky(in vec3 rd){
     float sunAmount = max(dot(rd,sunLight),0.0);
     float v = pow(1.0-max(rd.y,0.0),6.0);
-    vec3 sky = mix(vec3(.1,.2,.3), vec3(.32,.32,.32), v);
-    sky += sunColour * sunAmount*sunAmount*0.25;
-    sky += sunColour * min(pow(sunAmount,800.0)*1.5,.3);
+    
+    // Dag kleuren
+    vec3 dayHorizon = vec3(.32,.32,.32);
+    vec3 dayZenith = vec3(.1,.2,.3);
+    
+    // Nacht kleuren
+    vec3 nightHorizon = vec3(.05,.05,.1);
+    vec3 nightZenith = vec3(.01,.01,.05);
+    
+    // Mix tussen dag en nacht op basis van uTimeOfDay
+    vec3 horizon = mix(nightHorizon, dayHorizon, uTimeOfDay);
+    vec3 zenith = mix(nightZenith, dayZenith, uTimeOfDay);
+    
+    vec3 sky = mix(zenith, horizon, v);
+    
+    // Zon effect (alleen overdag zichtbaar)
+    vec3 currentSunColour = mix(vec3(0.1, 0.1, 0.3), sunColour, uTimeOfDay);
+    sky += currentSunColour * sunAmount*sunAmount*0.25 * uTimeOfDay;
+    sky += currentSunColour * min(pow(sunAmount,800.0)*1.5,.3) * uTimeOfDay;
+    
+    // Sterren effect (alleen 's nachts EN alleen in de hemel)
+    if (uTimeOfDay < 0.5 && rd.y > 0.0) { // rd.y > 0.0 betekent dat we naar boven kijken
+        float stars = 0.0;
+        vec3 starPos = rd * 100.0;
+        
+        // Meer sterren hoger in de hemel
+        float skyHeight = max(rd.y, 0.0); // 0.0 tot 1.0
+        float starIntensity = skyHeight * skyHeight; // Kwadratisch voor meer concentratie hoger
+        
+        // Verhoogde ster helderheid en meer sterren
+        float starThreshold = mix(0.985, 0.995, uTimeOfDay * 2.0); // Meer sterren bij donkerder
+        float nightFactor = 1.0 - (uTimeOfDay * 2.0); // Sterker effect bij minder licht
+        
+        stars += step(starThreshold, Hash(starPos.xy + starPos.z)) * nightFactor * starIntensity;
+        
+        // Extra helderheid voor sterren in het donker
+        float starBrightness = mix(1.5, 0.3, uTimeOfDay * 2.0);
+        sky += vec3(stars) * starBrightness;
+    }
+    
     return clamp(sky,0.0,1.0);
 }
 vec3 ApplyFog(in vec3 rgb, in float dis, in vec3 dir){
@@ -115,12 +153,26 @@ vec3 GrassBlades(in vec3 rO, in vec3 rD, in vec3 mat, in float dist){
 }
 void DoLighting(inout vec3 mat,in vec3 pos,in vec3 normal,in vec3 eyeDir,in float dis){
     float h = dot(sunLight,normal);
-    mat = mat*sunColour*(max(h,0.0)+.2);
+    
+    // Pas licht intensiteit aan op basis van tijd van dag
+    vec3 currentSunColour = mix(vec3(0.1, 0.1, 0.3), sunColour, uTimeOfDay);
+    float lightIntensity = mix(0.2, 1.0, uTimeOfDay); // Minder licht 's nachts
+    
+    mat = mat * currentSunColour * (max(h,0.0) * lightIntensity + 0.2);
 }
 vec3 TerrainColour(vec3 pos, vec3 dir, vec3 normal,float dis,float type){
     vec3 mat;
     if(type==0.0){
-        mat = mix(vec3(.0,.3,.0), vec3(.2,.3,.0), Noise(pos.xz*.025));
+        // Basis gras kleuren
+        vec3 dayGrass1 = vec3(.0,.3,.0);
+        vec3 dayGrass2 = vec3(.2,.3,.0);
+        vec3 nightGrass1 = vec3(.0,.1,.0);
+        vec3 nightGrass2 = vec3(.1,.15,.0);
+        
+        vec3 grass1 = mix(nightGrass1, dayGrass1, uTimeOfDay);
+        vec3 grass2 = mix(nightGrass2, dayGrass2, uTimeOfDay);
+        
+        mat = mix(grass1, grass2, Noise(pos.xz*.025));
         float t = FractalNoise(pos.xz*.1)+.5;
         mat = GrassBlades(pos, dir, mat, dis)*t;
         DoLighting(mat,pos,normal,dir,dis);
