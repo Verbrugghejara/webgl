@@ -1,11 +1,20 @@
 
-// Rolling hills shader (Shadertoy port)
+// Rolling hills shader (geoptimaliseerd)
 precision mediump float;
 uniform float iTime;
 uniform vec3 iResolution;
-uniform vec2 iMouse;
 uniform vec3 uCameraPos;
 uniform vec3 uCameraTarget;
+uniform float uTimeOfDay; // 0 = nacht, 1 = dag
+
+// Ring effecten
+uniform float uSpeedMultiplier; // Ring 0: Storm effecten
+uniform vec3 uColorFilter; // Ring 1: Kleurfilter
+uniform float uPsychedelicMode; // Ring 2: Psychedelische effecten
+uniform float uWaveIntensity; // Ring 3: Golfeffecten
+uniform float uGlitchMode; // Ring 4: Glitch effecten
+uniform float uNightVision; // Ring 5: Nachtzicht
+
 varying vec2 vUv;
 
 #define THRESHOLD .003
@@ -13,7 +22,6 @@ varying vec2 vUv;
 vec3 sunLight = normalize(vec3(0.35,0.2,0.3));
 vec3 cameraPos;
 vec3 sunColour = vec3(1.0, .75, .6);
-float PI = 3.1415926;
 
 // Hash and Noise
 float Hash(float p){
@@ -73,12 +81,151 @@ float FractalNoise(in vec2 xy){
     for(int i=0;i<3;i++){ f+=Noise(xy)*w; w*=0.6; xy*=2.0;}
     return f;
 }
+
+// Geavanceerde bliksem functies
+float lightningHash(float x) {
+    return fract(21654.6512 * sin(385.51 * x));
+}
+
+float lightningHash(vec2 p) {
+    return fract(1654.65157 * sin(15.5134763 * p.x + 45.5173247 * p.y + 5.21789));
+}
+
+vec2 lightningHash2(vec2 p) {
+    return vec2(lightningHash(p * .754), lightningHash(1.5743 * p + 4.5476351));
+}
+
+vec2 lightningNoise2(vec2 x) {
+    vec2 p = floor(x);
+    vec2 f = fract(x);
+    f = f * f * (3.0 - 2.0 * f);
+    
+    vec2 add = vec2(1.0, 0.0);
+    vec2 res = mix(mix(lightningHash2(p), lightningHash2(p + add.xy), f.x),
+                   mix(lightningHash2(p + add.yx), lightningHash2(p + add.xx), f.x), f.y);
+    return res;
+}
+
+vec2 lightningFbm2(vec2 x) {
+    vec2 r = vec2(0.0);
+    float a = 1.0;
+    
+    for (int i = 0; i < 6; i++) { // Minder iteraties voor performance
+        r += lightningNoise2(x) * a;
+        x *= 2.;
+        a *= .5;
+    }
+    
+    return r;
+}
+
+float lightningSegment(vec2 ba, vec2 pa) {
+    float h = clamp(dot(pa, ba) / dot(ba, ba), -0.2, 1.);
+    return length(pa - ba * h);
+}
+
+vec3 AdvancedLightning(vec2 fragCoord, vec3 iResolution, float iTime) {
+    vec2 p = 2. * fragCoord.xy / iResolution.yy - 1.;
+    vec2 d;
+    vec2 tgt = vec2(1., -1.);
+    float c = 0.;
+    
+    if (p.y >= 0.)
+        c = (1. - (lightningFbm2((p + .2) * p.y + .1 * iTime)).x) * p.y;
+    else 
+        c = (1. - (lightningFbm2(p + .2 + .1 * iTime)).x) * p.y * p.y;
+    
+    vec3 col = vec3(0.);
+    vec3 col1 = c * vec3(.3, .5, 1.);
+    float mdist = 100000.;
+    
+    float t = lightningHash(floor(5. * iTime));
+    tgt += 4. * lightningHash2(tgt + t) - 1.5;
+    
+    if (lightningHash(t + 2.3) > .6) {
+        for (int i = 0; i < 50; i++) { // Minder iteraties voor performance
+            vec2 dtgt = tgt - p;
+            d = .05 * (vec2(-.5, -1.) + lightningHash2(vec2(float(i), t)));
+            float dist = lightningSegment(d, dtgt);
+            mdist = min(mdist, dist);
+            tgt -= d;
+            c = exp(-.5 * dist) + exp(-55. * mdist);
+            col = c * vec3(.7, .8, 1.);
+        }
+    }
+    col += col1;
+    return col;
+}
+
 vec3 GetSky(in vec3 rd){
     float sunAmount = max(dot(rd,sunLight),0.0);
     float v = pow(1.0-max(rd.y,0.0),6.0);
-    vec3 sky = mix(vec3(.1,.2,.3), vec3(.32,.32,.32), v);
-    sky += sunColour * sunAmount*sunAmount*0.25;
-    sky += sunColour * min(pow(sunAmount,800.0)*1.5,.3);
+    
+    // Dag kleuren
+    vec3 dayHorizon = vec3(.32,.32,.32);
+    vec3 dayZenith = vec3(.1,.2,.3);
+    
+    // Nacht kleuren
+    vec3 nightHorizon = vec3(.05,.05,.1);
+    vec3 nightZenith = vec3(.01,.01,.05);
+    
+    // Ring 0: Storm effecten
+    if (uSpeedMultiplier > 0.1) {
+        // Simpele donkere wolken
+        vec3 stormClouds = vec3(0.1, 0.1, 0.15);
+        dayHorizon = mix(dayHorizon, stormClouds, uSpeedMultiplier * 0.7);
+        dayZenith = mix(dayZenith, stormClouds, uSpeedMultiplier * 0.5);
+        
+        // Geavanceerde bliksem met realistische takken
+        vec2 fragCoord = vUv * iResolution.xy;
+        vec3 lightningColor = AdvancedLightning(fragCoord, iResolution, iTime) * uSpeedMultiplier;
+        
+        // Voeg bliksem toe aan hemel kleuren
+        dayHorizon += lightningColor * 0.8;
+        dayZenith += lightningColor * 0.6;
+        nightHorizon += lightningColor * 1.2;
+        nightZenith += lightningColor * 1.0;
+    }
+    
+    // Ring 4: Glitch effect op hemelkleuren
+    if (uGlitchMode > 0.1) {
+        float glitch = step(0.97, Hash(rd.xy + iTime * 0.1)) * uGlitchMode;
+        dayHorizon += vec3(glitch * 0.5, glitch * -0.3, glitch * 0.8);
+        dayZenith += vec3(glitch * -0.2, glitch * 0.4, glitch * -0.1);
+    }
+    
+    // Mix tussen dag en nacht op basis van uTimeOfDay
+    vec3 horizon = mix(nightHorizon, dayHorizon, uTimeOfDay);
+    vec3 zenith = mix(nightZenith, dayZenith, uTimeOfDay);
+    
+    vec3 sky = mix(zenith, horizon, v);
+    
+    // Zon effect (alleen overdag zichtbaar en minder bij storm)
+    float sunVisibility = uSpeedMultiplier > 0.1 ? 0.3 : 1.0; // Zon wordt gedimpt bij storm
+    vec3 currentSunColour = mix(vec3(0.1, 0.1, 0.3), sunColour, uTimeOfDay);
+    sky += currentSunColour * sunAmount*sunAmount*0.25 * uTimeOfDay * sunVisibility;
+    sky += currentSunColour * min(pow(sunAmount,800.0)*1.5,.3) * uTimeOfDay * sunVisibility;
+    
+    // Sterren effect (alleen 's nachts EN alleen in de hemel)
+    if (uTimeOfDay < 0.5 && rd.y > 0.0) { // rd.y > 0.0 betekent dat we naar boven kijken
+        float stars = 0.0;
+        vec3 starPos = rd * 100.0;
+        
+        // Meer sterren hoger in de hemel
+        float skyHeight = max(rd.y, 0.0); // 0.0 tot 1.0
+        float starIntensity = skyHeight * skyHeight; // Kwadratisch voor meer concentratie hoger
+        
+        // Verhoogde ster helderheid en meer sterren
+        float starThreshold = mix(0.985, 0.995, uTimeOfDay * 2.0); // Meer sterren bij donkerder
+        float nightFactor = 1.0 - (uTimeOfDay * 2.0); // Sterker effect bij minder licht
+        
+        stars += step(starThreshold, Hash(starPos.xy + starPos.z)) * nightFactor * starIntensity;
+        
+        // Extra helderheid voor sterren in het donker
+        float starBrightness = mix(1.5, 0.3, uTimeOfDay * 2.0);
+        sky += vec3(stars) * starBrightness;
+    }
+    
     return clamp(sky,0.0,1.0);
 }
 vec3 ApplyFog(in vec3 rgb, in float dis, in vec3 dir){
@@ -89,7 +236,21 @@ vec3 DE(vec3 p){
     float base = Terrain(p.xz).x - 1.9;
     float height = Noise(p.xz*2.0)*.75 + Noise(p.xz)*.35 + Noise(p.xz*.5)*.2;
     float y = p.y-base-height; y=y*y;
-    vec2 ret = Voronoi((p.xz*2.5+sin(y*2.0+p.zx*12.3)*.12+vec2(sin(iTime*1.3+1.5*p.z),sin(iTime*2.6+1.5*p.x))*y*.5));
+    
+    // Pas animatiesnelheid aan met ring effecten
+    float timeSpeed = iTime * (1.0 + uSpeedMultiplier * 2.0);
+    
+    // Ring 0: Storm wind effecten op gras
+    vec2 windOffset = vec2(0.0);
+    if (uSpeedMultiplier > 0.1) {
+        float windStrength = uSpeedMultiplier * 0.3;
+        windOffset = vec2(
+            sin(timeSpeed * 3.0 + p.x * 0.1) * windStrength,
+            cos(timeSpeed * 2.5 + p.z * 0.1) * windStrength
+        );
+    }
+    
+    vec2 ret = Voronoi((p.xz*2.5+windOffset+sin(y*2.0+p.zx*12.3)*.12+vec2(sin(timeSpeed*3.5+1.5*p.z),sin(timeSpeed*6.0+1.5*p.x))*y*.5));
     float f=ret.x*0.65 + y*0.5;
     return vec3(y-f*1.4, clamp(f*1.1,0.0,1.0), ret.y);
 }
@@ -115,15 +276,63 @@ vec3 GrassBlades(in vec3 rO, in vec3 rD, in vec3 mat, in float dist){
 }
 void DoLighting(inout vec3 mat,in vec3 pos,in vec3 normal,in vec3 eyeDir,in float dis){
     float h = dot(sunLight,normal);
-    mat = mat*sunColour*(max(h,0.0)+.2);
+    
+    // Pas licht intensiteit aan op basis van tijd van dag
+    vec3 currentSunColour = mix(vec3(0.1, 0.1, 0.3), sunColour, uTimeOfDay);
+    float lightIntensity = mix(0.2, 1.0, uTimeOfDay); // Minder licht 's nachts
+    
+    mat = mat * currentSunColour * (max(h,0.0) * lightIntensity + 0.2);
 }
 vec3 TerrainColour(vec3 pos, vec3 dir, vec3 normal,float dis,float type){
     vec3 mat;
     if(type==0.0){
-        mat = mix(vec3(.0,.3,.0), vec3(.2,.3,.0), Noise(pos.xz*.025));
+        // Basis gras kleuren
+        vec3 dayGrass1 = vec3(.0,.3,.0);
+        vec3 dayGrass2 = vec3(.2,.3,.0);
+        vec3 nightGrass1 = vec3(.0,.1,.0);
+        vec3 nightGrass2 = vec3(.1,.15,.0);
+        
+        // Ring 0: Storm effecten - donkerder gras en nat effect
+        if (uSpeedMultiplier > 0.1) {
+            float wetness = uSpeedMultiplier * 0.8;
+            dayGrass1 = mix(dayGrass1, vec3(0.05, 0.15, 0.05), wetness); // Donkerder en natter
+            dayGrass2 = mix(dayGrass2, vec3(0.1, 0.2, 0.1), wetness);
+            nightGrass1 = mix(nightGrass1, vec3(0.02, 0.08, 0.02), wetness);
+            nightGrass2 = mix(nightGrass2, vec3(0.05, 0.12, 0.05), wetness);
+        }
+        
+        // Ring 2: Psychedelische kleuren
+        if (uPsychedelicMode > 0.1) {
+            float psychTime = iTime * 0.5;
+            dayGrass1 = vec3(sin(psychTime + pos.x*0.1)*0.5+0.5, cos(psychTime + pos.z*0.1)*0.5+0.5, sin(psychTime*1.5)*0.5+0.5);
+            dayGrass2 = vec3(cos(psychTime*1.2 + pos.x*0.1)*0.5+0.5, sin(psychTime*0.8 + pos.z*0.1)*0.5+0.5, cos(psychTime*2.0)*0.5+0.5);
+            nightGrass1 = dayGrass1 * 0.3;
+            nightGrass2 = dayGrass2 * 0.3;
+        }
+        
+        vec3 grass1 = mix(nightGrass1, dayGrass1, uTimeOfDay);
+        vec3 grass2 = mix(nightGrass2, dayGrass2, uTimeOfDay);
+        
+        // Ring 3: Golfeffecten
+        if (uWaveIntensity > 0.1) {
+            float wave = sin(pos.x * 0.5 + iTime * 2.0) * sin(pos.z * 0.3 + iTime * 1.5) * uWaveIntensity;
+            grass1 += vec3(wave * 0.3, wave * 0.5, wave * 0.2);
+            grass2 += vec3(wave * 0.2, wave * 0.4, wave * 0.3);
+        }
+        
+        mat = mix(grass1, grass2, Noise(pos.xz*.025));
         float t = FractalNoise(pos.xz*.1)+.5;
         mat = GrassBlades(pos, dir, mat, dis)*t;
         DoLighting(mat,pos,normal,dir,dis);
+        
+        // Ring 1: Kleurfilter toepassen
+        mat *= uColorFilter;
+        
+        // Ring 5: Nachtzicht effect
+        if (uNightVision > 0.1) {
+            float brightness = dot(mat, vec3(0.299, 0.587, 0.114));
+            mat = vec3(brightness * 0.2, brightness, brightness * 0.2) * (1.0 + uNightVision);
+        }
     }
     return ApplyFog(mat, dis, dir);
 }
@@ -149,10 +358,7 @@ bool Scene(in vec3 rO,in vec3 rD,out float resT,out float type){
     resT=BinarySubdivision(rO,rD,t,oldT);
     return hit;
 }
-vec3 CameraPath(float t){
-    vec2 p = vec2(200.0*sin(3.54*t),200.0*cos(2.0*t));
-    return vec3(p.x+55.0,12.0+sin(t*.3)*6.5,-94.0+p.y);
-}
+
 vec3 PostEffects(vec3 rgb, vec2 xy){
     rgb=pow(rgb,vec3(0.45));
     #define CONTRAST 1.1
@@ -190,6 +396,29 @@ void main(){
         nor=cross(v2,v3); nor=normalize(nor);
         col=TerrainColour(pos,dir,nor,distance,type);
     }
+    
+    // Ring 0: Storm regen effect - Dave Hoskins style
+    if (uSpeedMultiplier > 0.1) {
+        vec2 p = vUv;
+        float time = iTime;
+        float q_y = p.y; // Gebruik UV y-component
+        
+        // Dave Hoskins rain algorithm
+        vec2 st = 256. * (p * vec2(.5, .01) + vec2(time * .13 - q_y * .2, time * .13));
+        float f = Noise(st) * Noise(st * 0.773) * 1.55;
+        f = 0.25 + clamp(pow(abs(f), 13.0) * 13.0, 0.0, q_y * .14);
+        
+        // Rain intensity gebaseerd op storm effect
+        float rainIntensity = uSpeedMultiplier * 0.8;
+        f *= rainIntensity;
+        
+        // Voeg regen toe aan de scene kleur
+        col += 0.25 * f * (0.2 + col) * rainIntensity;
+        
+        // Lichte atmosferische verdonkering
+        col *= (1.0 - uSpeedMultiplier * 0.1);
+    }
+    
     col=PostEffects(col,xy);
     gl_FragColor=vec4(col,1.0);
 }
