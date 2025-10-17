@@ -274,7 +274,7 @@ function updateUIForFreeFlightMode() {
         scoreLabel.style.color = '#ff9900';
     }
     if (timerLabel) {
-        timerLabel.textContent = "Controls: ";
+        timerLabel.textContent = "Controls: R=Reset | Esc=Menu | 1=Day | 2=Night | 3=Storm | +=Faster | -=Slower";
     }
     updateTimerDisplay();
 }
@@ -367,9 +367,9 @@ const camera = new THREE.PerspectiveCamera(90, window.innerWidth/window.innerHei
 camera.position.set(0, 2, 5);
 
 const renderer = new THREE.WebGLRenderer({ 
-    antialias: window.devicePixelRatio <= 1, // Only use antialiasing on low DPI screens
+    // antialias: window.devicePixelRatio <= 1, // Only use antialiasing on low DPI screens
     canvas: canvas,
-    powerPreference: "high-performance" // Request high-performance GPU
+    // powerPreference: "high-performance" // Request high-performance GPU
 });
 renderer.setSize(window.innerWidth, window.innerHeight);
 // Limit pixel ratio to improve performance
