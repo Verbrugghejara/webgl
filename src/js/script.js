@@ -5,7 +5,7 @@ import * as THREE from 'https://unpkg.com/three@0.180.0/build/three.module.js';
 import landscapeFragmentShader from './shaders/fragment.glsl';
 import landscapeVertexShader from './shaders/vertex.glsl';
 
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 // ------------------- Game State -------------------
 let gameStarted = false;
