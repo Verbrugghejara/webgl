@@ -1,8 +1,8 @@
 
-import * as THREE from 'https://unpkg.com/three@0.180.0/build/three.module.js';
+import * as THREE from 'three';
 
-import landscapeFragmentShader from './shaders/fragment.glsl?raw';
-import landscapeVertexShader from './shaders/vertex.glsl?raw';
+import landscapeFragmentShader from './shaders/fragment.glsl';
+import landscapeVertexShader from './shaders/vertex.glsl';
 
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
