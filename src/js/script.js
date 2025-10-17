@@ -31,12 +31,10 @@ async function initShaders() {
     
     for (const paths of shaderPaths) {
         try {
-            console.log(`Trying to load shaders from: ${paths.vertex} and ${paths.fragment}`);
             landscapeVertexShader = await loadShader(paths.vertex);
             landscapeFragmentShader = await loadShader(paths.fragment);
             
             if (landscapeVertexShader && landscapeFragmentShader) {
-                console.log('Successfully loaded shaders from:', paths.vertex);
                 break;
             }
         } catch (error) {
@@ -71,12 +69,7 @@ async function initShaders() {
 
 
 
-// ------------------- Performance Settings -------------------
-const PERFORMANCE_SETTINGS = {
-    LOW_FPS_THRESHOLD: 30,
-    ADAPTIVE_QUALITY: true,
-    MAX_RINGS_UPDATE: 5 // Limit ring updates per frame
-};
+
 
 // ------------------- Game State -------------------
 let gameStarted = false;
@@ -113,7 +106,6 @@ function loadAirplaneModel() {
     }
 
     const currentPath = modelPaths[currentPathIndex];
-    console.log(`Trying to load airplane model from: ${currentPath}`);
     
     loader.load(
         currentPath,
@@ -143,13 +135,11 @@ function loadAirplaneModel() {
             
             playerPlane = model;
             scene.add(playerPlane);
-            console.log(`Successfully loaded airplane model from: ${currentPath}`);
         },
         function (progress) {
             // Loading progress
         },
         function (error) {
-            console.warn(`Failed to load from ${currentPath}, trying next path...`);
             currentPathIndex++;
             loadAirplaneModel(); // Try next path
         }
@@ -406,18 +396,7 @@ let shaderPlane;
 let backgroundScene;
 let backgroundCamera;
 
-// Helper function to safely update shader uniforms
-function updateShaderUniform(uniformName, value) {
-    if (shaderMaterial && shaderMaterial.uniforms[uniformName]) {
-        if (typeof value === 'object' && value.set) {
-            shaderMaterial.uniforms[uniformName].value.set(...arguments[1]);
-        } else if (typeof value === 'object' && value.copy) {
-            shaderMaterial.uniforms[uniformName].value.copy(value);
-        } else {
-            shaderMaterial.uniforms[uniformName].value = value;
-        }
-    }
-}
+
 
 // Initialize shader background after shaders are loaded
 async function initShaderBackground() {
@@ -1173,29 +1152,23 @@ function updateShaderUniforms(time) {
     }
 }
 
-// Optimize ring animation with reduced calculations
-let ringAnimationCounter = 0;
 function animateRings(time) {
     if (isFreeFlightMode) return;
     
-    // Only update every other frame to improve performance
-    ringAnimationCounter++;
-    const shouldUpdate = ringAnimationCounter % 2 === 0;
-    
     rings.forEach((ring, index) => {
-        ring.rotation.z += 0.008; // Slightly slower rotation
+        ring.rotation.z += 0.01;
         
-        if (!ring.userData.passed && shouldUpdate) {
-            const pulse = Math.sin(time * 0.002 + index) * 0.08 + 1.0; // Reduced pulse
+        if (!ring.userData.passed) {
+            const pulse = Math.sin(time * 0.003 + index) * 0.1 + 1.0;
             ring.scale.setScalar(pulse);
             
             if (playerPlane) {
                 const distance = playerPlane.position.distanceTo(ring.position);
-                if (distance < 12.0) { // Increased threshold to reduce calculations
-                    const proximity = 1.0 - (distance / 12.0);
-                    ring.material.opacity = 0.9 + proximity * 0.3;
+                if (distance < 10.0) {
+                    const proximity = 1.0 - (distance / 10.0);
+                    ring.material.opacity = 0.9 + proximity * 0.4;
                     
-                    if (distance < 8.0) { // Increased threshold
+                    if (distance < 6.0) {
                         const planeZ = playerPlane.position.z;
                         const ringZ = ring.position.z;
                         
@@ -1205,8 +1178,8 @@ function animateRings(time) {
                             ring.material.color.setHex(0x00ffaa);
                         }
                         
-                        const glowPulse = Math.sin(time * 0.015) * 0.2 + 0.8; // Reduced glow effect
-                        ring.scale.setScalar(pulse + glowPulse * 0.2);
+                        const glowPulse = Math.sin(time * 0.02) * 0.3 + 0.7;
+                        ring.scale.setScalar(pulse + glowPulse * 0.3);
                     }
                 } else {
                     if (!ring.userData.passed) {
@@ -1241,7 +1214,6 @@ function render() {
 
 function animate(time){
     animationId = requestAnimationFrame(animate);
-    updateFPS(); // Monitor performance
     
     if ((gameStarted && !gameEnded) || isFinishingFlight) {
         gameTime += 0.016;
@@ -1321,53 +1293,16 @@ function animate(time){
     render();
 }
 
-// Performance monitoring
-let frameCount = 0;
-let lastTime = performance.now();
-let fps = 0;
 
-function updateFPS() {
-    frameCount++;
-    const now = performance.now();
-    const delta = now - lastTime;
-    
-    if (delta >= 1000) { // Update every second
-        fps = Math.round((frameCount * 1000) / delta);
-        frameCount = 0;
-        lastTime = now;
-        
-        // Log low FPS warnings and adapt quality
-        if (fps < PERFORMANCE_SETTINGS.LOW_FPS_THRESHOLD && PERFORMANCE_SETTINGS.ADAPTIVE_QUALITY) {
-            console.warn(`Low FPS detected: ${fps} FPS - Reducing quality`);
-            // Reduce renderer pixel ratio for better performance
-            if (renderer.getPixelRatio() > 1) {
-                renderer.setPixelRatio(1);
-                console.log('Reduced pixel ratio to 1 for better performance');
-            }
-        }
-    }
-}
 
 // Initialize the application
 async function init() {
-    console.log('Initializing application...');
-    console.log('Current URL:', window.location.href);
-    console.log('Base URL:', window.location.origin + window.location.pathname);
-    console.log('Device pixel ratio:', window.devicePixelRatio);
-    console.log('Renderer pixel ratio:', Math.min(window.devicePixelRatio, 2));
-    
     try {
         await initShaders();
-        console.log('Shaders initialized successfully');
-        
         await initShaderBackground();
-        console.log('Shader background initialized successfully');
-        
         animate();
-        console.log('Animation started');
     } catch (error) {
         console.error('Error during initialization:', error);
-        // Still start animation even if shaders fail
         animate();
     }
 }
