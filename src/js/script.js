@@ -8,8 +8,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 // ------------------- Game State -------------------
 let gameStarted = false;
-let animationId = null;
 let gameTime = 0;
+let animationId = null;
 let gameEnded = false;
 let allRingsCompleted = false;
 let lastRingReached = false;
@@ -27,7 +27,7 @@ const loader = new GLTFLoader();
 loader.load(
     './assets/airplane.glb',
     function (gltf) {
-        console.log('Model loaded successfully from ./assets/airplane.glb');
+
         const model = gltf.scene;
         
         if (playerPlane) {
@@ -42,9 +42,7 @@ loader.load(
         if (clips && clips.length > 0) {
             const action = mixer.clipAction(clips[0]);
             action.play();
-            console.log('Animation loaded and playing');
-        } else {
-            console.log('No animations found in model');
+
         }
         
         model.traverse((child) => {
@@ -56,18 +54,15 @@ loader.load(
         
         playerPlane = model;
         scene.add(playerPlane);
-        
-        console.log('Airplane model loaded successfully!');
     },
     function (progress) {
-        console.log('Loading progress:', (progress.loaded / progress.total * 100) + '%');
+        // Loading progress
     },
     function (error) {
         console.warn('Failed to load from ./assets/, trying /assets/...');
         loader.load(
             '/assets/airplane.glb',
             function (gltf) {
-                console.log('Model loaded successfully from /assets/airplane.glb');
                 const model = gltf.scene;
                 
                 if (playerPlane) {
@@ -93,12 +88,10 @@ loader.load(
                 
                 playerPlane = model;
                 scene.add(playerPlane);
-                console.log('Airplane model loaded successfully!');
             },
             undefined,
             function (error2) {
                 console.error('Failed to load from both paths:', error, error2);
-                console.log('Using fallback red box. Make sure airplane.glb is in the public/assets/ folder');
                 createFallbackPlane();
             }
         );
@@ -111,7 +104,6 @@ function createFallbackPlane() {
     playerPlane = new THREE.Mesh(planeGeometry, planeMaterial);
     playerPlane.position.set(0, 0, 0);
     scene.add(playerPlane);
-    console.log('Using fallback red box plane');
 }
 
 // ------------------- Screen Management -------------------
@@ -222,7 +214,7 @@ function startFreeFlightMode() {
     
     initializeThrottle();
     
-    console.log("🆓 Free Flight Mode gestart! Gebruik 1/2/3 toetsen voor dag/nacht/storm");
+
 }
 
 function updateUIForFreeFlightMode() {
@@ -315,7 +307,7 @@ function showEndScreen(isSuccess = false) {
         }
     }
     
-    console.log('🎉 Eindscherm getoond!');
+
 }
 
 // ------------------- Renderer & Scene -------------------
@@ -448,19 +440,19 @@ window.addEventListener('keyup', (event) => {
             targetTimeOfDay = 1.0;
             isStorming = false;
             shaderMaterial.uniforms.uSpeedMultiplier.value = 0.0;
-            console.log("☀️ Dag modus geactiveerd!");
+
         }
         if (event.code === 'Digit2') {
             targetTimeOfDay = 0.1;
             isStorming = false;
             shaderMaterial.uniforms.uSpeedMultiplier.value = 0.0;
-            console.log("🌙 Nacht modus geactiveerd!");
+
         }
         if (event.code === 'Digit3') {
             targetTimeOfDay = 0.2;
             isStorming = true;
             shaderMaterial.uniforms.uSpeedMultiplier.value = 1.5;
-            console.log("⛈️ Storm modus geactiveerd!");
+
         }
     }
     
@@ -468,12 +460,12 @@ window.addEventListener('keyup', (event) => {
         if (event.code === 'Equal' || event.code === 'NumpadAdd') {
             speedMultiplier = Math.min(speedMultiplier + 0.5, 10.0);
             updateSpeedThrottle();
-            console.log(`🚀 Snelheid verhoogd naar ${speedMultiplier.toFixed(1)}x`);
+
         }
         if (event.code === 'Minus' || event.code === 'NumpadSubtract') {
             speedMultiplier = Math.max(speedMultiplier - 0.5, 1.0);
             updateSpeedThrottle();
-            console.log(`🐌 Snelheid verlaagd naar ${speedMultiplier.toFixed(1)}x`);
+
         }
     }
 });
@@ -492,7 +484,7 @@ function backToStartScreen() {
     
     resetGame();
     
-    console.log("🏠 Terug naar startscherm");
+
 }
 
 function resetGame() {
@@ -563,7 +555,7 @@ function resetGame() {
     updateTimerDisplay();
     updateSpeedThrottle();
     
-    console.log('Spel gereset!');
+
 }
 
 function updateTimerDisplay() {
@@ -629,7 +621,7 @@ function initializeThrottle() {
         speedMultiplier = Math.round(speedMultiplier * 10) / 10;
         
         updateSpeedThrottle();
-        console.log(`🎛️ Throttle aangepast naar ${speedMultiplier.toFixed(1)}x`);
+
     }
     
     speedThrottle.addEventListener('mousedown', (event) => {
@@ -758,7 +750,7 @@ function updatePlaneMovement() {
         }
         
         if (!window.altitudeLimitWarningShown) {
-            console.log(`🚨 Maximum hoogte bereikt! (${maxAltitude}m) - Vliegtuig kan niet hoger.`);
+
             window.altitudeLimitWarningShown = true;
             
             setTimeout(() => {
@@ -913,18 +905,18 @@ function checkRingCollisions() {
                             isStorming = false;
                             shaderMaterial.uniforms.uSpeedMultiplier.value = 0.0;
                             targetTimeOfDay = 0.8;
-                            console.log("⛅ Storm gestopt! Je bent weer op koers!");
+
                         }
                         nextRingIndex++;
-                        console.log(`✅ Ring ${index + 1} gepakt in juiste volgorde!`);
+
                     } else {
-                        console.log(`⚠️ Ring ${index + 1} gepakt, maar niet in volgorde. Volgende verwacht: ${nextRingIndex + 1}`);
+
                         
                         if (index > nextRingIndex && isStorming) {
                             isStorming = false;
                             shaderMaterial.uniforms.uSpeedMultiplier.value = 0.0;
                             targetTimeOfDay = 0.8;
-                            console.log("⛅ Storm gestopt! Je hebt een ring verder gepakt.");
+
                         }
                         
                         nextRingIndex = index + 1;
@@ -936,15 +928,13 @@ function checkRingCollisions() {
                     
                     ring.material.color.setHex(0x00ff00);
                     
-                    console.log(`🎯 Ring ${ring.userData.index + 1}/10 gepasseerd! Snelheid: ${speedMultiplier.toFixed(1)}x`);
+
                     updateScore();
                     
                     if (ringsPassedCount >= 10 && !allRingsCompleted) {
                         allRingsCompleted = true;
                         gameEnded = true;
-                        console.log("🎉 Gefeliciteerd! Alle ringen gepasseerd!");
-                        console.log(`⏱️ Voltooitijd: ${Math.floor(gameTime / 60)}:${Math.floor(gameTime % 60).toString().padStart(2, '0')}`);
-                        console.log("✈️ Je kunt nog 3 seconden doorvliegen...");
+
                         
                         if (finishTimeout) {
                             clearTimeout(finishTimeout);
@@ -965,8 +955,7 @@ function checkRingCollisions() {
                         lastRingReached = true;
                         lastRingPassed = true;
                         lastRingTimer = 0;
-                        console.log("🏁 Laatste ring gepasseerd! Je kunt nog 3 seconden doorvliegen...");
-                        console.log(`⏱️ Tijd: ${Math.floor(gameTime / 60)}:${Math.floor(gameTime % 60).toString().padStart(2, '0')}`);
+
                         
                         startFinishCountdown();
                         
@@ -997,7 +986,7 @@ function checkMissedRings() {
         const ringZ = nextRing.position.z;
         
         if (planeZ < ringZ - 15 && !nextRing.userData.passed) {
-            console.log(`❌ Ring ${nextRingIndex + 1} gemist!`);
+
             
             nextRing.material.color.setHex(0xff0000);
             
@@ -1005,8 +994,7 @@ function checkMissedRings() {
                 lastRingReached = true;
                 lastRingPassed = false;
                 lastRingTimer = 0;
-                console.log("🏁 Laatste ring gemist! Je hebt 3 seconden om terug te gaan...");
-                console.log(`⏱️ Tijd: ${Math.floor(gameTime / 60)}:${Math.floor(gameTime % 60).toString().padStart(2, '0')}`);
+
                 
                 startFinishCountdown();
                 
@@ -1020,7 +1008,7 @@ function checkMissedRings() {
                     isStorming = true;
                     shaderMaterial.uniforms.uSpeedMultiplier.value = 1.5;
                     targetTimeOfDay = 0.1;
-                    console.log("⛈️ STORM BEGINT! Pak de volgende ring om de storm te stoppen!");
+
                 }
             }
             
