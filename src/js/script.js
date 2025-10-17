@@ -1,8 +1,30 @@
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import landscapeVertexShader from './shaders/vertex.glsl';
-import landscapeFragmentShader from './shaders/fragment.glsl';
+
+// Shader loading function
+async function loadShader(url) {
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`Failed to load shader: ${response.status}`);
+        }
+        return await response.text();
+    } catch (error) {
+        console.error('Error loading shader:', error);
+        return '';
+    }
+}
+
+// Load shaders
+let landscapeVertexShader = '';
+let landscapeFragmentShader = '';
+
+// Initialize shaders
+async function initShaders() {
+    landscapeVertexShader = await loadShader('./src/js/shaders/vertex.glsl');
+    landscapeFragmentShader = await loadShader('./src/js/shaders/fragment.glsl');
+}
 
 
 
@@ -334,35 +356,57 @@ directionalLight.shadow.mapSize.height = 2048;
 scene.add(directionalLight);
 
 // ------------------- Shader Background -------------------
-const shaderGeometry = new THREE.PlaneGeometry(2, 2);
-const shaderMaterial = new THREE.RawShaderMaterial({
-    uniforms: {
-        iTime: { value: 0 },
-        iResolution: { value: new THREE.Vector3(window.innerWidth, window.innerHeight, 1) },
-        uCameraPos: { value: new THREE.Vector3(0, 2, 5) },
-        uCameraTarget: { value: new THREE.Vector3(0, 2, 0) },
-        uTimeOfDay: { value: 0.5 },
-        
-        uSpeedMultiplier: { value: 0.0 },
-        uColorFilter: { value: new THREE.Vector3(1, 1, 1) },
-        uPsychedelicMode: { value: 0.0 },
-        uWaveIntensity: { value: 0.0 },
-        uGlitchMode: { value: 0.0 },
-        uNightVision: { value: 0.0 }
-    },
-    transparent: false,
-    vertexShader: landscapeVertexShader,
-    fragmentShader: landscapeFragmentShader,
-});
+let shaderGeometry;
+let shaderMaterial;
+let shaderPlane;
+let backgroundScene;
+let backgroundCamera;
 
-const shaderPlane = new THREE.Mesh(shaderGeometry, shaderMaterial);
-shaderPlane.position.set(0,0,0);
+// Helper function to safely update shader uniforms
+function updateShaderUniform(uniformName, value) {
+    if (shaderMaterial && shaderMaterial.uniforms[uniformName]) {
+        if (typeof value === 'object' && value.set) {
+            shaderMaterial.uniforms[uniformName].value.set(...arguments[1]);
+        } else if (typeof value === 'object' && value.copy) {
+            shaderMaterial.uniforms[uniformName].value.copy(value);
+        } else {
+            shaderMaterial.uniforms[uniformName].value = value;
+        }
+    }
+}
 
-const backgroundScene = new THREE.Scene();
-backgroundScene.add(shaderPlane);
+// Initialize shader background after shaders are loaded
+async function initShaderBackground() {
+    shaderGeometry = new THREE.PlaneGeometry(2, 2);
+    shaderMaterial = new THREE.RawShaderMaterial({
+        uniforms: {
+            iTime: { value: 0 },
+            iResolution: { value: new THREE.Vector3(window.innerWidth, window.innerHeight, 1) },
+            uCameraPos: { value: new THREE.Vector3(0, 2, 5) },
+            uCameraTarget: { value: new THREE.Vector3(0, 2, 0) },
+            uTimeOfDay: { value: 0.5 },
+            
+            uSpeedMultiplier: { value: 0.0 },
+            uColorFilter: { value: new THREE.Vector3(1, 1, 1) },
+            uPsychedelicMode: { value: 0.0 },
+            uWaveIntensity: { value: 0.0 },
+            uGlitchMode: { value: 0.0 },
+            uNightVision: { value: 0.0 }
+        },
+        transparent: false,
+        vertexShader: landscapeVertexShader,
+        fragmentShader: landscapeFragmentShader,
+    });
 
-const backgroundCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-backgroundCamera.position.z = 0.5;
+    shaderPlane = new THREE.Mesh(shaderGeometry, shaderMaterial);
+    shaderPlane.position.set(0,0,0);
+
+    backgroundScene = new THREE.Scene();
+    backgroundScene.add(shaderPlane);
+
+    backgroundCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    backgroundCamera.position.z = 0.5;
+}
 
 // ------------------- Player Plane -------------------
 
@@ -437,20 +481,23 @@ window.addEventListener('keyup', (event) => {
         if (event.code === 'Digit1') {
             targetTimeOfDay = 1.0;
             isStorming = false;
-            shaderMaterial.uniforms.uSpeedMultiplier.value = 0.0;
-
+            if (shaderMaterial) {
+                shaderMaterial.uniforms.uSpeedMultiplier.value = 0.0;
+            }
         }
         if (event.code === 'Digit2') {
             targetTimeOfDay = 0.1;
             isStorming = false;
-            shaderMaterial.uniforms.uSpeedMultiplier.value = 0.0;
-
+            if (shaderMaterial) {
+                shaderMaterial.uniforms.uSpeedMultiplier.value = 0.0;
+            }
         }
         if (event.code === 'Digit3') {
             targetTimeOfDay = 0.2;
             isStorming = true;
-            shaderMaterial.uniforms.uSpeedMultiplier.value = 1.5;
-
+            if (shaderMaterial) {
+                shaderMaterial.uniforms.uSpeedMultiplier.value = 1.5;
+            }
         }
     }
     
@@ -522,12 +569,14 @@ function resetGame() {
         speedMultiplier = 1.0;
     }
     
-    shaderMaterial.uniforms.uSpeedMultiplier.value = 0.0;
-    shaderMaterial.uniforms.uColorFilter.value.set(1, 1, 1);
-    shaderMaterial.uniforms.uPsychedelicMode.value = 0.0;
-    shaderMaterial.uniforms.uWaveIntensity.value = 0.0;
-    shaderMaterial.uniforms.uGlitchMode.value = 0.0;
-    shaderMaterial.uniforms.uNightVision.value = 0.0;
+    if (shaderMaterial) {
+        shaderMaterial.uniforms.uSpeedMultiplier.value = 0.0;
+        shaderMaterial.uniforms.uColorFilter.value.set(1, 1, 1);
+        shaderMaterial.uniforms.uPsychedelicMode.value = 0.0;
+        shaderMaterial.uniforms.uWaveIntensity.value = 0.0;
+        shaderMaterial.uniforms.uGlitchMode.value = 0.0;
+        shaderMaterial.uniforms.uNightVision.value = 0.0;
+    }
     
     planePosition.x = 0;
     planePosition.y = 0;
@@ -901,9 +950,10 @@ function checkRingCollisions() {
                     if (index === nextRingIndex) {
                         if (isStorming) {
                             isStorming = false;
-                            shaderMaterial.uniforms.uSpeedMultiplier.value = 0.0;
+                            if (shaderMaterial) {
+                                shaderMaterial.uniforms.uSpeedMultiplier.value = 0.0;
+                            }
                             targetTimeOfDay = 0.8;
-
                         }
                         nextRingIndex++;
 
@@ -912,9 +962,10 @@ function checkRingCollisions() {
                         
                         if (index > nextRingIndex && isStorming) {
                             isStorming = false;
-                            shaderMaterial.uniforms.uSpeedMultiplier.value = 0.0;
+                            if (shaderMaterial) {
+                                shaderMaterial.uniforms.uSpeedMultiplier.value = 0.0;
+                            }
                             targetTimeOfDay = 0.8;
-
                         }
                         
                         nextRingIndex = index + 1;
@@ -1004,9 +1055,10 @@ function checkMissedRings() {
             } else {
                 if (!isStorming) {
                     isStorming = true;
-                    shaderMaterial.uniforms.uSpeedMultiplier.value = 1.5;
+                    if (shaderMaterial) {
+                        shaderMaterial.uniforms.uSpeedMultiplier.value = 1.5;
+                    }
                     targetTimeOfDay = 0.1;
-
                 }
             }
             
@@ -1020,7 +1072,9 @@ window.addEventListener('resize', ()=>{
     camera.aspect = window.innerWidth/window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-    shaderMaterial.uniforms.iResolution.value.set(window.innerWidth, window.innerHeight, 1);
+    if (shaderMaterial) {
+        shaderMaterial.uniforms.iResolution.value.set(window.innerWidth, window.innerHeight, 1);
+    }
 });
 
 // ------------------- Camera & Rendering Functions -------------------
@@ -1044,8 +1098,10 @@ function updateCamera() {
     );
     const cameraTarget = playerPlane.position.clone().add(lookAhead);
     
-    shaderMaterial.uniforms.uCameraPos.value.copy(cameraPos);
-    shaderMaterial.uniforms.uCameraTarget.value.copy(cameraTarget);
+    if (shaderMaterial) {
+        shaderMaterial.uniforms.uCameraPos.value.copy(cameraPos);
+        shaderMaterial.uniforms.uCameraTarget.value.copy(cameraTarget);
+    }
     
     const camera3DOffset = new THREE.Vector3(
         -planeRotationSin * 5, 
@@ -1063,8 +1119,10 @@ function updateCamera() {
 }
 
 function updateShaderUniforms(time) {
-    shaderMaterial.uniforms.iTime.value = time * 0.001;
-    shaderMaterial.uniforms.uTimeOfDay.value = currentTimeOfDay;
+    if (shaderMaterial) {
+        shaderMaterial.uniforms.iTime.value = time * 0.001;
+        shaderMaterial.uniforms.uTimeOfDay.value = currentTimeOfDay;
+    }
     
     if (mixer) {
         mixer.update(0.016);
@@ -1121,7 +1179,11 @@ function animateRings(time) {
 function render() {
     renderer.autoClear = false;
     renderer.clear();
-    renderer.render(backgroundScene, backgroundCamera);
+    
+    // Only render background if shaders are loaded
+    if (backgroundScene && backgroundCamera) {
+        renderer.render(backgroundScene, backgroundCamera);
+    }
     
     renderer.clearDepth();
     renderer.render(scene, camera);
@@ -1208,4 +1270,11 @@ function animate(time){
     render();
 }
 
-animate();
+// Initialize the application
+async function init() {
+    await initShaders();
+    await initShaderBackground();
+    animate();
+}
+
+init();
