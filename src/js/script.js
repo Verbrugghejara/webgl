@@ -834,9 +834,9 @@ function updatePlaneMovement() {
     
     let targetBanking = 0;
     if (keys['KeyA'] || keys['ArrowLeft']) {
-        targetBanking = 0.3;
+        targetBanking = 0.5;
     } else if (keys['KeyD'] || keys['ArrowRight']) {
-        targetBanking = -0.3;
+        targetBanking = -0.5;
     }
     
     const bankingDifference = targetBanking - (bankingVelocity * 15);
