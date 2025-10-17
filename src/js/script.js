@@ -1,5 +1,6 @@
 
-import * as THREE from 'three';
+
+import * as THREE from 'https://unpkg.com/three@0.180.0/build/three.module.js';
 
 import landscapeFragmentShader from './shaders/fragment.glsl';
 import landscapeVertexShader from './shaders/vertex.glsl';
