@@ -60,12 +60,10 @@
   #startScreen h1 {
     font-size: 3.5em;
     margin: 0 0 20px 0;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-    background: linear-gradient(45deg, #00ffff, #ffffff, #00ffff);
+    background: #00ffff;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    animation: glow 2s ease-in-out infinite alternate;
   }
   
   @keyframes glow {
@@ -161,7 +159,8 @@
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: linear-gradient(135deg, rgba(0, 50, 0, 0.9) 0%, rgba(0, 100, 50, 0.9) 100%);
+    
+    background: linear-gradient(135deg, rgba(30, 60, 114, 0.85) 0%, rgba(42, 82, 152, 0.85) 100%);
     backdrop-filter: blur(3px);
     display: flex;
     flex-direction: column;
@@ -184,22 +183,8 @@
     font-size: 4em;
     margin: 0 0 20px 0;
     text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-    background: linear-gradient(45deg, #00ff00, #ffff00, #00ff00);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    animation: celebrate 2s ease-in-out infinite alternate;
-  }
-  
-  @keyframes celebrate {
-    from { 
-      filter: drop-shadow(0 0 10px #00ff00);
-      transform: scale(1);
-    }
-    to { 
-      filter: drop-shadow(0 0 25px #ffff00);
-      transform: scale(1.05);
-    }
+    color: #00ffff;
+    font-weight: bold;
   }
   
   #endScreen .subtitle {
@@ -300,62 +285,32 @@
   /* Finish countdown styling */
   .finish-countdown {
     position: fixed;
-    top: 50%;
+    top: 25%;
     left: 50%;
     transform: translate(-50%, -50%);
     z-index: 1002;
     text-align: center;
-    background: rgba(0, 0, 0, 0.9);
     padding: 40px 60px;
     border-radius: 20px;
-    border: 3px solid rgba(255, 255, 0, 0.8);
+    border: 2px solid rgba(0, 255, 255, 0.6);
     backdrop-filter: blur(10px);
-    box-shadow: 0 0 30px rgba(255, 255, 0, 0.5);
-    animation: countdownPulse 1s ease-in-out infinite;
-  }
-  
-  @keyframes countdownPulse {
-    0%, 100% { 
-      transform: translate(-50%, -50%) scale(1);
-      box-shadow: 0 0 30px rgba(255, 255, 0, 0.5);
-    }
-    50% { 
-      transform: translate(-50%, -50%) scale(1.05);
-      box-shadow: 0 0 50px rgba(255, 255, 0, 0.8);
-    }
+    box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
   }
   
   .countdown-text {
-    color: #ffff00;
-    font-size: 2em;
+    color: #00ffff;
+    font-size: 1.8em;
     font-weight: bold;
     margin-bottom: 20px;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
-    letter-spacing: 2px;
+    letter-spacing: 1px;
   }
   
   .countdown-number {
     color: #ffffff;
-    font-size: 6em;
+    font-size: 5em;
     font-weight: bold;
-    text-shadow: 0 0 20px rgba(255, 255, 0, 0.8);
-    -webkit-text-stroke: 2px #ffff00;
-    animation: numberPulse 1s ease-in-out;
-  }
-  
-  @keyframes numberPulse {
-    0% { 
-      transform: scale(0.8);
-      opacity: 0.5;
-    }
-    50% { 
-      transform: scale(1.2);
-      opacity: 1;
-    }
-    100% { 
-      transform: scale(1);
-      opacity: 1;
-    }
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
   }
   
   /* Snelheidsthrottle styling */
@@ -459,29 +414,29 @@
 <body>
   <!-- Startscherm -->
   <div id="startScreen">
-    <h1>🛩️ Sky Navigator</h1>
-    <div class="subtitle">Vlieg door de magische ringen en verander dag naar nacht</div>
+    <h1>Sky Navigator</h1>
+    <div class="subtitle">Precisievliegen door de navigatieroute</div>
     
     <div class="instructions">
-      <h3 style="color: #00ffff; margin-top: 0;">🎯 Doel van het Spel</h3>
-      <p>Vlieg met je rode vliegtuig door de blauwe ringen om tussen dag en nacht te schakelen. Elke ring die je passeert verandert de tijd van dag in dit prachtige procedurele landschap!</p>
+      <h3 style="color: #00ffff; margin-top: 0;">Missie</h3>
+      <p>Navigeer je vliegtuig door de aangegeven waypoints. Volg de route nauwkeurig en behoud controle over snelheid en hoogte tijdens je vlucht door het landschap.</p>
     </div>
     
     <div class="controls">
       <div class="control-group">
-        <div class="control-title">✈️ Vliegen</div>
-        <div class="control-desc">W/↑ - Vooruit<br>S/↓ - Achteruit<br>A/← - Links draaien<br>D/→ - Rechts draaien</div>
+        <div class="control-title">Navigatie</div>
+        <div class="control-desc">W/↑ - Voorwaarts<br>S/↓ - Achterwaarts<br>A/← - Links<br>D/→ - Rechts</div>
       </div>
       
       <div class="control-group">
-        <div class="control-title">🎮 Hoogte & Snelheid</div>
-        <div class="control-desc">SPATIE - Omhoog<br>SHIFT - Omlaag<br>+ - Sneller<br>- - Langzamer</div>
+        <div class="control-title">Hoogte & Snelheid</div>
+        <div class="control-desc">SPATIE/arrowUp - Stijgen<br>SHIFT/arrowDown - Dalen<br>+ - Versnellen<br>- - Vertragen</div>
       </div>
     </div>
     
     <div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
-      <button id="startButton">Start Spel</button>
-      <button id="flyFreeButton">Fly Free</button>
+      <button id="startButton">Start Missie</button>
+      <button id="flyFreeButton">Vrije Vlucht</button>
     </div>
   </div>
 
@@ -522,11 +477,11 @@
 
   <!-- Eindscherm -->
   <div id="endScreen" class="hidden">
-    <h1>🎉 Gefeliciteerd!</h1>
-    <div class="subtitle">Je hebt alle 10 ringen succesvol gepasseerd!</div>
+    <h1>Missie Voltooid</h1>
+    <div class="subtitle">Vlucht succesvol afgerond</div>
     
     <div class="end-stats">
-      <h3 style="color: #00ffff; margin-top: 0;">📊 Jouw Prestatie</h3>
+      <h3 style="color: #00ffff; margin-top: 0;">Resultaten</h3>
       <div class="stat-item">
         <span class="stat-label">Ringen Gepasseerd:</span>
         <span class="stat-value" id="finalScore">10/10</span>
@@ -535,20 +490,11 @@
         <span class="stat-label">Eindsnelheid:</span>
         <span class="stat-value" id="finalSpeed">6.0x</span>
       </div>
-      <div class="stat-item">
-        <span class="stat-label">Status:</span>
-        <span class="stat-value" style="color: #00ff00;">✅ Voltooid!</span>
-      </div>
-    </div>
-    
-    <div class="end-message">
-      <p>🌟 Geweldig gevlogen! Je hebt alle magische ringen verzameld en het landschap laten transformeren van dag naar nacht.</p>
-      <p>💨 Je eindsnelheid toont aan hoe snel je bent geworden tijdens je vlucht!</p>
     </div>
     
     <div class="end-buttons">
-      <button id="playAgainButton">🔄 Speel Opnieuw</button>
-      <button id="backToMenuButton">🏠 Terug naar Menu</button>
+      <button id="playAgainButton">Opnieuw Vliegen</button>
+      <button id="backToMenuButton">Hoofdmenu</button>
     </div>
   </div>
 

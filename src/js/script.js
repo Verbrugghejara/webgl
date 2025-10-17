@@ -219,7 +219,7 @@ function startFreeFlightMode() {
 
 function updateUIForFreeFlightMode() {
     if (scoreLabel) {
-        scoreLabel.textContent = "🆓 Free Flight Mode";
+        scoreLabel.textContent = "Free Flight Mode";
         scoreLabel.style.color = '#ff9900';
     }
     if (timerLabel) {
@@ -248,7 +248,7 @@ function showEndScreen(isSuccess = false) {
     
     const endScreenTitle = currentEndScreen?.querySelector('h1');
     const endScreenSubtitle = currentEndScreen?.querySelector('.subtitle');
-    const statusElement = currentEndScreen?.querySelector('.stat-value[style*="color: #00ff00"]');
+    // const statusElement = currentEndScreen?.querySelector('.stat-value[style*="color: #00ff00"]');
     
     gameStarted = false;
     gameEnded = true;
@@ -269,11 +269,9 @@ function showEndScreen(isSuccess = false) {
     
     if (endScreenTitle) {
         if (isSuccess) {
-            endScreenTitle.textContent = "🎉 Gefeliciteerd!";
-            endScreenTitle.style.background = "linear-gradient(45deg, #00ff00, #ffff00, #00ff00)";
+            endScreenTitle.textContent = "Gefeliciteerd!";
         } else {
-            endScreenTitle.textContent = "⏰ Net Niet Gelukt!";
-            endScreenTitle.style.background = "linear-gradient(45deg, #ff6600, #ff3300, #ff6600)";
+            endScreenTitle.textContent = "Net Niet Gelukt!";
         }
     }
     
