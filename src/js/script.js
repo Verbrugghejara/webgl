@@ -231,7 +231,7 @@ function startGame() {
 
 function updateUIForGameMode() {
     if (scoreLabel) {
-        scoreLabel.innerHTML = 'Ringen: <span id="score">0</span>/10';
+        scoreLabel.innerHTML = 'Rings: <span id="score">0</span>/10';
         scoreLabel.style.color = 'white';
         const newScore = document.getElementById('score');
         if (newScore) {
@@ -239,7 +239,7 @@ function updateUIForGameMode() {
         }
     }
     if (timerLabel) {
-        timerLabel.innerHTML = 'Tijd: <span id="timer">00:00</span>';
+        timerLabel.innerHTML = 'Time: <span id="timer">00:00</span>';
         const newTimer = document.getElementById('timer');
         if (newTimer) {
             updateTimerDisplay();
@@ -274,7 +274,7 @@ function updateUIForFreeFlightMode() {
         scoreLabel.style.color = '#ff9900';
     }
     if (timerLabel) {
-        timerLabel.textContent = "Controles: ";
+        timerLabel.textContent = "Controls: ";
     }
     updateTimerDisplay();
 }
@@ -320,19 +320,19 @@ function showEndScreen(isSuccess = false) {
     
     if (endScreenTitle) {
         if (isSuccess) {
-            endScreenTitle.textContent = "Gefeliciteerd!";
+            endScreenTitle.textContent = "Congratulations!";
         } else {
-            endScreenTitle.textContent = "Net Niet Gelukt!";
+            endScreenTitle.textContent = "Almost There!";
         }
     }
     
     if (endScreenSubtitle) {
         if (isSuccess) {
-            endScreenSubtitle.textContent = `Alle 10 ringen gepasseerd in ${timeString}!`;
+            endScreenSubtitle.textContent = `All 10 rings passed in ${timeString}!`;
             endScreenSubtitle.style.color = "#ffff00";
         } else {
             const ringsPassedCount = rings.filter(r => r.userData.passed).length;
-            endScreenSubtitle.textContent = `${ringsPassedCount} van de 10 ringen gehaald in ${timeString}!`;
+            endScreenSubtitle.textContent = `${ringsPassedCount} of 10 rings completed in ${timeString}!`;
             endScreenSubtitle.style.color = "#ffaa00";
         }
     }
@@ -373,7 +373,7 @@ const renderer = new THREE.WebGLRenderer({
 });
 renderer.setSize(window.innerWidth, window.innerHeight);
 // Limit pixel ratio to improve performance
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+// renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
@@ -633,7 +633,7 @@ function updateTimerDisplay() {
     
     if (currentTimer && !gameEnded) {
         if (isFreeFlightMode) {
-            currentTimer.textContent = "1=Dag | 2=Nacht | 3=Storm | +=Sneller | -=Langzamer";
+            currentTimer.textContent = "1=Day | 2=Night | 3=Storm | +=Faster | -=Slower";
             currentTimer.style.color = '#ffaa00';
             currentTimer.style.fontSize = '0.8em';
         } else {
@@ -1071,7 +1071,7 @@ function checkMissedRings() {
                 startFinishCountdown();
                 
                 if (timerDisplay) {
-                    timerDisplay.textContent = `Laatste ring gemist! Tijd: 3.0s`;
+                    timerDisplay.textContent = `Last ring missed! Time: 3.0s`;
                     timerDisplay.style.color = '#ff6600';
                     timerDisplay.style.fontSize = '1.2em';
                 }
@@ -1226,10 +1226,10 @@ function animate(time){
                 if (timerDisplay) {
                     const remainingTime = Math.max(0, 3 - lastRingTimer);
                     if (lastRingPassed) {
-                        timerDisplay.textContent = `Eindigt in: ${remainingTime.toFixed(1)}s`;
+                        timerDisplay.textContent = `Ending in: ${remainingTime.toFixed(1)}s`;
                         timerDisplay.style.color = '#00ff00';
                     } else {
-                        timerDisplay.textContent = `Laatste kans: ${remainingTime.toFixed(1)}s`;
+                        timerDisplay.textContent = `Last chance: ${remainingTime.toFixed(1)}s`;
                         timerDisplay.style.color = '#ff6600';
                     }
                     timerDisplay.style.fontSize = '1.2em';
