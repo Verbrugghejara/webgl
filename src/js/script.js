@@ -22,8 +22,51 @@ let landscapeFragmentShader = '';
 
 // Initialize shaders
 async function initShaders() {
-    landscapeVertexShader = await loadShader('./src/js/shaders/vertex.glsl');
-    landscapeFragmentShader = await loadShader('./src/js/shaders/fragment.glsl');
+    // Try multiple paths for GitHub Pages compatibility
+    const shaderPaths = [
+        { vertex: './src/js/shaders/vertex.glsl', fragment: './src/js/shaders/fragment.glsl' },
+        { vertex: '/webgl/src/js/shaders/vertex.glsl', fragment: '/webgl/src/js/shaders/fragment.glsl' },
+        { vertex: 'src/js/shaders/vertex.glsl', fragment: 'src/js/shaders/fragment.glsl' }
+    ];
+    
+    for (const paths of shaderPaths) {
+        try {
+            console.log(`Trying to load shaders from: ${paths.vertex} and ${paths.fragment}`);
+            landscapeVertexShader = await loadShader(paths.vertex);
+            landscapeFragmentShader = await loadShader(paths.fragment);
+            
+            if (landscapeVertexShader && landscapeFragmentShader) {
+                console.log('Successfully loaded shaders from:', paths.vertex);
+                break;
+            }
+        } catch (error) {
+            console.warn(`Failed to load shaders from ${paths.vertex}:`, error);
+        }
+    }
+    
+    if (!landscapeVertexShader || !landscapeFragmentShader) {
+        console.error('Failed to load shaders from all paths');
+        // Provide fallback shaders
+        landscapeVertexShader = `
+            precision mediump float;
+            attribute vec3 position;
+            attribute vec2 uv;
+            uniform mat4 modelViewMatrix;
+            uniform mat4 projectionMatrix;
+            varying vec2 vUv;
+            void main() {
+                vUv = uv;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+        `;
+        landscapeFragmentShader = `
+            precision mediump float;
+            varying vec2 vUv;
+            void main() {
+                gl_FragColor = vec4(0.5, 0.7, 1.0, 1.0);
+            }
+        `;
+    }
 }
 
 
@@ -46,79 +89,68 @@ let playerPlane = null;
 let mixer = null;
 const loader = new GLTFLoader();
 
-loader.load(
+// Try multiple paths for GitHub Pages compatibility
+const modelPaths = [
     './assets/airplane.glb',
-    function (gltf) {
+    '/webgl/assets/airplane.glb',
+    'assets/airplane.glb'
+];
 
-        const model = gltf.scene;
-        
-        if (playerPlane) {
-            scene.remove(playerPlane);
-        }
-        
-        model.scale.set(1.0, 1.0, 1.0);
-        model.position.set(0, 0, 0);
-        
-        mixer = new THREE.AnimationMixer(model);
-        const clips = gltf.animations;
-        if (clips && clips.length > 0) {
-            const action = mixer.clipAction(clips[0]);
-            action.play();
+let currentPathIndex = 0;
 
-        }
-        
-        model.traverse((child) => {
-            if (child.isMesh) {
-                child.castShadow = true;
-                child.receiveShadow = true;
-            }
-        });
-        
-        playerPlane = model;
-        scene.add(playerPlane);
-    },
-    function (progress) {
-        // Loading progress
-    },
-    function (error) {
-        console.warn('Failed to load from ./assets/, trying /assets/...');
-        loader.load(
-            '/assets/airplane.glb',
-            function (gltf) {
-                const model = gltf.scene;
-                
-                if (playerPlane) {
-                    scene.remove(playerPlane);
-                }
-                
-                model.scale.set(1.0, 1.0, 1.0);
-                model.position.set(0, 0, 0);
-                
-                mixer = new THREE.AnimationMixer(model);
-                const clips = gltf.animations;
-                if (clips && clips.length > 0) {
-                    const action = mixer.clipAction(clips[0]);
-                    action.play();
-                }
-                
-                model.traverse((child) => {
-                    if (child.isMesh) {
-                        child.castShadow = true;
-                        child.receiveShadow = true;
-                    }
-                });
-                
-                playerPlane = model;
-                scene.add(playerPlane);
-            },
-            undefined,
-            function (error2) {
-                console.error('Failed to load from both paths:', error, error2);
-                createFallbackPlane();
-            }
-        );
+function loadAirplaneModel() {
+    if (currentPathIndex >= modelPaths.length) {
+        console.error('Failed to load airplane model from all paths');
+        createFallbackPlane();
+        return;
     }
-);
+
+    const currentPath = modelPaths[currentPathIndex];
+    console.log(`Trying to load airplane model from: ${currentPath}`);
+    
+    loader.load(
+        currentPath,
+        function (gltf) {
+            const model = gltf.scene;
+            
+            if (playerPlane) {
+                scene.remove(playerPlane);
+            }
+            
+            model.scale.set(1.0, 1.0, 1.0);
+            model.position.set(0, 0, 0);
+            
+            mixer = new THREE.AnimationMixer(model);
+            const clips = gltf.animations;
+            if (clips && clips.length > 0) {
+                const action = mixer.clipAction(clips[0]);
+                action.play();
+            }
+            
+            model.traverse((child) => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                }
+            });
+            
+            playerPlane = model;
+            scene.add(playerPlane);
+            console.log(`Successfully loaded airplane model from: ${currentPath}`);
+        },
+        function (progress) {
+            // Loading progress
+        },
+        function (error) {
+            console.warn(`Failed to load from ${currentPath}, trying next path...`);
+            currentPathIndex++;
+            loadAirplaneModel(); // Try next path
+        }
+    );
+}
+
+// Start loading the model
+loadAirplaneModel();
 
 function createFallbackPlane() {
     const planeGeometry = new THREE.BoxGeometry(0.5, 0.2, 1);
@@ -339,7 +371,7 @@ camera.position.set(0, 2, 5);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, canvas: canvas });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(window.devicePixelRatio);
+// renderer.setPixelRatio(window.devicePixelRatio);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
@@ -1272,9 +1304,24 @@ function animate(time){
 
 // Initialize the application
 async function init() {
-    await initShaders();
-    await initShaderBackground();
-    animate();
+    console.log('Initializing application...');
+    console.log('Current URL:', window.location.href);
+    console.log('Base URL:', window.location.origin + window.location.pathname);
+    
+    try {
+        await initShaders();
+        console.log('Shaders initialized successfully');
+        
+        await initShaderBackground();
+        console.log('Shader background initialized successfully');
+        
+        animate();
+        console.log('Animation started');
+    } catch (error) {
+        console.error('Error during initialization:', error);
+        // Still start animation even if shaders fail
+        animate();
+    }
 }
 
 init();
