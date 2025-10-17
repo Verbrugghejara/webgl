@@ -1,8 +1,10 @@
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import landscapeVertexShader from '../shaders/vertex.glsl';
-import landscapeFragmentShader from '../shaders/fragment.glsl';
+
+// Load shaders via fetch to be compatible with production build
+const landscapeVertexShader = await fetch('./shaders/vertex.glsl').then(r => r.text());
+const landscapeFragmentShader = await fetch('./shaders/fragment.glsl').then(r => r.text());
 
 
 
