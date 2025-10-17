@@ -24,6 +24,10 @@ let landscapeFragmentShader = '';
 async function initShaders() {
     // Try multiple paths for GitHub Pages compatibility
     const shaderPaths = [
+        { vertex: './src/js/shaders/vertex.glsl', fragment: './src/js/shaders/fragment_optimized.glsl' },
+        { vertex: '/webgl/src/js/shaders/vertex.glsl', fragment: '/webgl/src/js/shaders/fragment_optimized.glsl' },
+        { vertex: 'src/js/shaders/vertex.glsl', fragment: 'src/js/shaders/fragment_optimized.glsl' },
+        // Fallback to original if optimized version fails
         { vertex: './src/js/shaders/vertex.glsl', fragment: './src/js/shaders/fragment.glsl' },
         { vertex: '/webgl/src/js/shaders/vertex.glsl', fragment: '/webgl/src/js/shaders/fragment.glsl' },
         { vertex: 'src/js/shaders/vertex.glsl', fragment: 'src/js/shaders/fragment.glsl' }
@@ -70,6 +74,13 @@ async function initShaders() {
 }
 
 
+
+// ------------------- Performance Settings -------------------
+const PERFORMANCE_SETTINGS = {
+    LOW_FPS_THRESHOLD: 30,
+    ADAPTIVE_QUALITY: true,
+    MAX_RINGS_UPDATE: 5 // Limit ring updates per frame
+};
 
 // ------------------- Game State -------------------
 let gameStarted = false;
@@ -369,9 +380,14 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(90, window.innerWidth/window.innerHeight, 0.1, 1000);
 camera.position.set(0, 2, 5);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, canvas: canvas });
+const renderer = new THREE.WebGLRenderer({ 
+    antialias: window.devicePixelRatio <= 1, // Only use antialiasing on low DPI screens
+    canvas: canvas,
+    powerPreference: "high-performance" // Request high-performance GPU
+});
 renderer.setSize(window.innerWidth, window.innerHeight);
-// renderer.setPixelRatio(window.devicePixelRatio);
+// Limit pixel ratio to improve performance
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
@@ -1161,23 +1177,29 @@ function updateShaderUniforms(time) {
     }
 }
 
+// Optimize ring animation with reduced calculations
+let ringAnimationCounter = 0;
 function animateRings(time) {
     if (isFreeFlightMode) return;
     
+    // Only update every other frame to improve performance
+    ringAnimationCounter++;
+    const shouldUpdate = ringAnimationCounter % 2 === 0;
+    
     rings.forEach((ring, index) => {
-        ring.rotation.z += 0.01;
+        ring.rotation.z += 0.008; // Slightly slower rotation
         
-        if (!ring.userData.passed) {
-            const pulse = Math.sin(time * 0.003 + index) * 0.1 + 1.0;
+        if (!ring.userData.passed && shouldUpdate) {
+            const pulse = Math.sin(time * 0.002 + index) * 0.08 + 1.0; // Reduced pulse
             ring.scale.setScalar(pulse);
             
             if (playerPlane) {
                 const distance = playerPlane.position.distanceTo(ring.position);
-                if (distance < 10.0) {
-                    const proximity = 1.0 - (distance / 10.0);
-                    ring.material.opacity = 0.9 + proximity * 0.4;
+                if (distance < 12.0) { // Increased threshold to reduce calculations
+                    const proximity = 1.0 - (distance / 12.0);
+                    ring.material.opacity = 0.9 + proximity * 0.3;
                     
-                    if (distance < 6.0) {
+                    if (distance < 8.0) { // Increased threshold
                         const planeZ = playerPlane.position.z;
                         const ringZ = ring.position.z;
                         
@@ -1187,8 +1209,8 @@ function animateRings(time) {
                             ring.material.color.setHex(0x00ffaa);
                         }
                         
-                        const glowPulse = Math.sin(time * 0.02) * 0.3 + 0.7;
-                        ring.scale.setScalar(pulse + glowPulse * 0.3);
+                        const glowPulse = Math.sin(time * 0.015) * 0.2 + 0.8; // Reduced glow effect
+                        ring.scale.setScalar(pulse + glowPulse * 0.2);
                     }
                 } else {
                     if (!ring.userData.passed) {
@@ -1223,6 +1245,7 @@ function render() {
 
 function animate(time){
     animationId = requestAnimationFrame(animate);
+    updateFPS(); // Monitor performance
     
     if ((gameStarted && !gameEnded) || isFinishingFlight) {
         gameTime += 0.016;
@@ -1302,11 +1325,40 @@ function animate(time){
     render();
 }
 
+// Performance monitoring
+let frameCount = 0;
+let lastTime = performance.now();
+let fps = 0;
+
+function updateFPS() {
+    frameCount++;
+    const now = performance.now();
+    const delta = now - lastTime;
+    
+    if (delta >= 1000) { // Update every second
+        fps = Math.round((frameCount * 1000) / delta);
+        frameCount = 0;
+        lastTime = now;
+        
+        // Log low FPS warnings and adapt quality
+        if (fps < PERFORMANCE_SETTINGS.LOW_FPS_THRESHOLD && PERFORMANCE_SETTINGS.ADAPTIVE_QUALITY) {
+            console.warn(`Low FPS detected: ${fps} FPS - Reducing quality`);
+            // Reduce renderer pixel ratio for better performance
+            if (renderer.getPixelRatio() > 1) {
+                renderer.setPixelRatio(1);
+                console.log('Reduced pixel ratio to 1 for better performance');
+            }
+        }
+    }
+}
+
 // Initialize the application
 async function init() {
     console.log('Initializing application...');
     console.log('Current URL:', window.location.href);
     console.log('Base URL:', window.location.origin + window.location.pathname);
+    console.log('Device pixel ratio:', window.devicePixelRatio);
+    console.log('Renderer pixel ratio:', Math.min(window.devicePixelRatio, 2));
     
     try {
         await initShaders();
