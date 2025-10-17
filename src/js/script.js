@@ -24,10 +24,6 @@ let landscapeFragmentShader = '';
 async function initShaders() {
     // Try multiple paths for GitHub Pages compatibility
     const shaderPaths = [
-        { vertex: './src/js/shaders/vertex.glsl', fragment: './src/js/shaders/fragment_optimized.glsl' },
-        { vertex: '/webgl/src/js/shaders/vertex.glsl', fragment: '/webgl/src/js/shaders/fragment_optimized.glsl' },
-        { vertex: 'src/js/shaders/vertex.glsl', fragment: 'src/js/shaders/fragment_optimized.glsl' },
-        // Fallback to original if optimized version fails
         { vertex: './src/js/shaders/vertex.glsl', fragment: './src/js/shaders/fragment.glsl' },
         { vertex: '/webgl/src/js/shaders/vertex.glsl', fragment: '/webgl/src/js/shaders/fragment.glsl' },
         { vertex: 'src/js/shaders/vertex.glsl', fragment: 'src/js/shaders/fragment.glsl' }
