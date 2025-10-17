@@ -299,7 +299,6 @@ function showEndScreen(isSuccess = false) {
     
     const endScreenTitle = currentEndScreen?.querySelector('h1');
     const endScreenSubtitle = currentEndScreen?.querySelector('.subtitle');
-    // const statusElement = currentEndScreen?.querySelector('.stat-value[style*="color: #00ff00"]');
     
     gameStarted = false;
     gameEnded = true;
@@ -343,17 +342,6 @@ function showEndScreen(isSuccess = false) {
     
     if (currentFinalSpeed) {
         currentFinalSpeed.textContent = `${speedMultiplier.toFixed(1)}x`;
-    }
-    
-    if (statusElement) {
-        if (isSuccess) {
-            statusElement.textContent = `✅ Voltooid in ${timeString}!`;
-            statusElement.style.color = "#00ff00";
-        } else {
-            const ringsPassedCount = rings.filter(r => r.userData.passed).length;
-            statusElement.textContent = `🎯 ${ringsPassedCount}/10 ringen in ${timeString}`;
-            statusElement.style.color = "#ff6600";
-        }
     }
     
 
