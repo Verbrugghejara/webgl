@@ -1,5 +1,5 @@
 
-import * as THREE from 'https://unpkg.com/three@0.180.0/build/three.module.js';
+import * as THREE from 'three';
 
 import landscapeFragmentShader from './shaders/fragment.glsl?raw';
 import landscapeVertexShader from './shaders/vertex.glsl?raw';
@@ -25,7 +25,7 @@ let mixer = null;
 const loader = new GLTFLoader();
 
 loader.load(
-    './assets/airplane.glb',
+    './src/assets/blender/airplane.glb',
     function (gltf) {
 
         const model = gltf.scene;
@@ -59,9 +59,9 @@ loader.load(
         // Loading progress
     },
     function (error) {
-        console.warn('Failed to load from ./assets/, trying /assets/...');
+        console.warn('Failed to load from ./assets/blender/, trying /assets/blender/...');
         loader.load(
-            '/assets/airplane.glb',
+            '/src/assets/blender/airplane.glb',
             function (gltf) {
                 const model = gltf.scene;
                 
