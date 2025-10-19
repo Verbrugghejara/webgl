@@ -1,6 +1,3 @@
-#version 300 es
-
-// Rolling hills shader (geoptimaliseerd)
 precision mediump float;
 uniform float iTime;
 uniform vec3 iResolution;
