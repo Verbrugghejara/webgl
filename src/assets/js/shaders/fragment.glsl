@@ -1,4 +1,6 @@
 
+#version 300 es
+
 // Rolling hills shader (geoptimaliseerd)
 precision mediump float;
 uniform float iTime;
@@ -15,7 +17,8 @@ uniform float uWaveIntensity; // Ring 3: Golfeffecten
 uniform float uGlitchMode; // Ring 4: Glitch effecten
 uniform float uNightVision; // Ring 5: Nachtzicht
 
-varying vec2 vUv;
+in vec2 vUv;
+out vec4 fragColor;
 
 #define THRESHOLD .003
 #define MOD2 vec2(3.07965, 7.4235)
@@ -420,5 +423,5 @@ void main(){
     }
     
     col=PostEffects(col,xy);
-    gl_FragColor=vec4(col,1.0);
+    fragColor=vec4(col,1.0);
 }
