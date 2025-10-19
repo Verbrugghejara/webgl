@@ -369,7 +369,6 @@ vec3 PostEffects(vec3 rgb, vec2 xy){
 }
 void main(){
     vec2 fragCoord = vUv*iResolution.xy;
-    vec4 fragColor;
     vec2 xy = fragCoord.xy/iResolution.xy;
     vec2 uv = (-1.0+2.0*xy)*vec2(iResolution.x/iResolution.y,1.0);
     
