@@ -53,7 +53,7 @@ export function createPlaneController(scene) {
     const tryFallbackPaths = () => {
         return new Promise((resolve, reject) => {
             loader.load(
-                '/assets/airplane.glb',
+                './assets/airplane.glb',
                 (gltf) => {
                     const model = gltf.scene;
                     setupLoadedModel(model, gltf);
@@ -87,7 +87,7 @@ export function createPlaneController(scene) {
     const loadAirplaneModel = async () => {
         return new Promise((resolve, reject) => {
             loader.load(
-                './assets/airplane.glb',
+                './src/assets/blender/airplane.glb',
                 (gltf) => {
                     const model = gltf.scene;
                     
