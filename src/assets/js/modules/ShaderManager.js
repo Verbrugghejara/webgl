@@ -25,9 +25,9 @@ export function createShaderManager(landscapeVertexShader, landscapeFragmentShad
                 uGlitchMode: { value: 0.0 },
                 uNightVision: { value: 0.0 }
             },
-            transparent: false,
             vertexShader: vertexShader,
             fragmentShader: fragmentShader,
+            side: THREE.DoubleSide,
             glslVersion: THREE.GLSL3
         });
         
