@@ -74,7 +74,7 @@ export const gameState = {
     },
     
     setSpeedFromRings(ringsPassedCount) {
-        gameState.speedMultiplier = Math.min(10.0, 1.0 + ringsPassedCount * 0.3);
+        gameState.speedMultiplier = Math.min(10.0, 1.0 + ringsPassedCount * 0.5);
     },
     
     setAllRingsCompleted() {
