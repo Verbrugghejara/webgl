@@ -18,12 +18,12 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(90, window.innerWidth/window.innerHeight, 0.1, 1000);
 camera.position.set(0, 2, 5);
 
-const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true, 
-  context: canvas.getContext('webgl2') });
+const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true});
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(window.devicePixelRatio);
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.setPixelRatio(1)
+
+let highQuality = true;
 
 // ------------------- Lighting -------------------
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
@@ -265,6 +265,18 @@ window.addEventListener('resize', () => {
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
     shaderManager.updateResolution(window.innerWidth, window.innerHeight);
+    
+    const pixelRatio = highQuality ? 1 : window.devicePixelRatio;
+
+    const width = canvas.clientWidth * pixelRatio | 0;
+    const height = canvas.clientHeight * pixelRatio | 0;
+    
+    const needResize = canvas.width !== width || canvas.height !== height;
+    if (needResize) {
+        renderer.setSize(width, height, false);
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+    }
 });
 
 // ------------------- Initialize Game -------------------
