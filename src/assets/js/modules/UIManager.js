@@ -85,32 +85,32 @@ export function createUIManager() {
         
         const endScreenTitle = endScreen?.querySelector('h1');
         const endScreenSubtitle = endScreen?.querySelector('.subtitle');
-        
+
         const ringsPassedCount = getRingsPassedCountFunc();
-        const timeString = gameState.getFormattedTime();
-        
+        const timeString = gameState.finalTime || gameState.getFormattedTime();
+
         if (endScreenTitle) {
             if (isSuccess) {
-                endScreenTitle.textContent = "Gefeliciteerd!";
+                endScreenTitle.textContent = "Congratulations!";
             } else {
-                endScreenTitle.textContent = "Net Niet Gelukt!";
+                endScreenTitle.textContent = "Almost!";
             }
         }
-        
+
         if (endScreenSubtitle) {
             if (isSuccess) {
-                endScreenSubtitle.textContent = `Alle 10 ringen gepasseerd in ${timeString}!`;
+                endScreenSubtitle.textContent = `All 10 rings passed in ${timeString}!`;
                 endScreenSubtitle.style.color = "#ffff00";
             } else {
-                endScreenSubtitle.textContent = `${ringsPassedCount} van de 10 ringen gehaald in ${timeString}!`;
+                endScreenSubtitle.textContent = `${ringsPassedCount} out of 10 rings reached in ${timeString}!`;
                 endScreenSubtitle.style.color = "#ffaa00";
             }
         }
-        
+
         if (finalScore) {
             finalScore.textContent = `${ringsPassedCount}/10`;
         }
-        
+
         if (finalSpeed) {
             finalSpeed.textContent = `${gameState.speedMultiplier.toFixed(1)}x`;
         }
@@ -118,11 +118,11 @@ export function createUIManager() {
     
     const updateUIForGameMode = () => {
         if (scoreLabel) {
-            scoreLabel.innerHTML = 'Ringen: <span id="score">0</span>/10';
+            scoreLabel.innerHTML = 'Rings: <span id="score">0</span>/10';
             scoreLabel.style.color = 'white';
         }
         if (timerLabel) {
-            timerLabel.innerHTML = 'Tijd: <span id="timer">00:00</span>';
+            timerLabel.innerHTML = 'Time: <span id="timer">00:00</span>';
         }
         
         score = document.getElementById('score');
@@ -135,7 +135,19 @@ export function createUIManager() {
             scoreLabel.style.color = '#ff9900';
         }
         if (timerLabel) {
-            timerLabel.textContent = "Controles: 1 = Dag | 2 = Nacht | 3 = Storm | + = Sneller | - = Langzamer | R = Restart | ESC = Menu";
+            timerLabel.innerHTML =
+                `<div style='position:fixed; top:40px; right:32px; z-index:1000;  background:rgba(30,30,30,0.85); padding:16px 20px 16px 32px; border-radius:12px; box-shadow:0 2px 16px rgba(0,0,0,0.25); color:#ffaa00; font-size:1.05em;'>
+                    <div style='font-weight:bold; margin-bottom:8px;'>Controls</div>
+                    <div>1 = Day</div>
+                    <div>2 = Night</div>
+                    <div>3 = Storm</div>
+                    <div>+ = Faster</div>
+                    <div>- = Slower</div>
+                    <div>R = Restart</div>
+                    <div>ESC = Menu</div>
+                </div>`;
+            timerLabel.style.fontSize = '';
+            timerLabel.style.color = '';
         }
     };
     
@@ -148,7 +160,7 @@ export function createUIManager() {
     const updateTimerDisplay = (gameState) => {
         if (timerDisplay && !gameState.gameEnded) {
             if (gameState.isFreeFlightMode) {
-                timerDisplay.textContent = "1=Dag | 2=Nacht | 3=Storm | +=Sneller | -=Langzamer";
+                timerDisplay.textContent = "1=Day | 2=Night | 3=Storm | +=Faster | -=Slower";
                 timerDisplay.style.color = '#ffaa00';
                 timerDisplay.style.fontSize = '0.8em';
             } else {
@@ -317,10 +329,8 @@ export function createUIManager() {
             if (gameState.lastRingPassed) {
                 timerDisplay.textContent = `Eindigt in: ${remainingTime.toFixed(1)}s`;
                 timerDisplay.style.color = '#00ff00';
-            } else {
-                timerDisplay.textContent = `Laatste kans: ${remainingTime.toFixed(1)}s`;
-                timerDisplay.style.color = '#ff6600';
-            }
+            } 
+            
             timerDisplay.style.fontSize = '1.2em';
         }
     };

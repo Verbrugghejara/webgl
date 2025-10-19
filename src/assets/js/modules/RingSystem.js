@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-const ringSystemState = {
+export const ringSystemState = {
     rings: [],
     nextRingIndex: 0,
     isStorming: false,

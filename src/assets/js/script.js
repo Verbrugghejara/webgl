@@ -7,7 +7,7 @@ import landscapeVertexShader from './shaders/vertex.glsl?raw';
 // Import all modules
 import { gameState } from './modules/GameState.js';
 import { createPlaneController } from './modules/PlaneController.js';
-import { initRingSystem, hideRings, showRings, resetRings, animateRings, checkCollisions, getRingsPassedCount } from './modules/RingSystem.js';
+import { initRingSystem, hideRings, showRings, resetRings, animateRings, checkCollisions, getRingsPassedCount, ringSystemState } from './modules/RingSystem.js';
 import { createUIManager } from './modules/UIManager.js';
 import { createShaderManager } from './modules/ShaderManager.js';
 import { getTerrainHeight } from './modules/TerrainUtils.js';
@@ -172,11 +172,31 @@ function handleRingCollisions() {
             gameState.setSpeedFromRings(ringsPassedCount);
             uiManager.updateSpeedThrottle(gameState.speedMultiplier);
             uiManager.updateScore(ringsPassedCount);
-            
-            if (ringsPassedCount >= 10 && !gameState.allRingsCompleted) {
+
+            // Always trigger completion if last ring is passed
+            if (collisionResult.ringIndex === 9) {
+                if (!gameState.allRingsCompleted) {
+                    gameState.setAllRingsCompleted();
+                }
+                if (!gameState.lastRingReached) {
+                    gameState.setLastRingReached(true);
+                    uiManager.startFinishCountdown();
+                }
+                // Store the time at the moment of completion
+                gameState.finalTime = gameState.getFormattedTime();
+                // Show end screen after countdown
+                if (!gameState.finishTimeout) {
+                    gameState.finishTimeout = setTimeout(() => {
+                        gameState.isFinishingFlight = false;
+                        gameState.finishTimeout = null;
+                        uiManager.hideFinishCountdown();
+                        showEndScreen(true);
+                    }, 3000);
+                }
+            } else if (ringsPassedCount >= 10 && !gameState.allRingsCompleted) {
                 gameState.setAllRingsCompleted();
                 uiManager.startFinishCountdown();
-                
+                gameState.finalTime = gameState.getFormattedTime();
                 gameState.finishTimeout = setTimeout(() => {
                     gameState.isFinishingFlight = false;
                     gameState.finishTimeout = null;
@@ -184,14 +204,23 @@ function handleRingCollisions() {
                     showEndScreen(true);
                 }, 3000);
             }
-            
-            if (collisionResult.ringIndex === 9 && !gameState.lastRingReached) {
-                gameState.setLastRingReached(true);
+        } else if (collisionResult.type === 'lastRingMissed') {
+            // Player missed the last ring, trigger end sequence
+            if (!gameState.allRingsCompleted) {
+                gameState.setAllRingsCompleted();
+            }
+            if (!gameState.lastRingReached) {
+                gameState.setLastRingReached(false);
                 uiManager.startFinishCountdown();
             }
-        } else if (collisionResult.type === 'lastRingMissed') {
-            gameState.setLastRingReached(false);
-            uiManager.startFinishCountdown();
+            if (!gameState.finishTimeout) {
+                gameState.finishTimeout = setTimeout(() => {
+                    gameState.isFinishingFlight = false;
+                    gameState.finishTimeout = null;
+                    uiManager.hideFinishCountdown();
+                    showEndScreen(false);
+                }, 3000);
+            }
         }
     }
 }
@@ -216,32 +245,56 @@ function animate(time) {
     
     if ((gameState.gameStarted && !gameState.gameEnded) || gameState.isFinishingFlight) {
         uiManager.updateTimerDisplay(gameState);
-        
+
         if (!gameState.isFreeFlightMode) {
+            // Check if player has passed the last ring (even if missed)
+            const plane = planeController.getPlane();
+            if (plane && ringSystemState.rings.length > 0) {
+                const lastRing = ringSystemState.rings[9];
+                if (!gameState.allRingsCompleted && lastRing) {
+                    if (plane.position.z < lastRing.position.z - 15) {
+                        // Player has flown past the last ring, trigger end sequence
+                        gameState.setAllRingsCompleted();
+                        gameState.setLastRingReached(false);
+                        uiManager.startFinishCountdown();
+                        // Store the time at the moment of completion
+                        gameState.finalTime = gameState.getFormattedTime();
+                        if (!gameState.finishTimeout) {
+                            gameState.finishTimeout = setTimeout(() => {
+                                gameState.isFinishingFlight = false;
+                                gameState.finishTimeout = null;
+                                uiManager.hideFinishCountdown();
+                                showEndScreen(false);
+                            }, 3000);
+                        }
+                    }
+                }
+            }
+
             if (gameState.lastRingReached) {
                 const timeExpired = gameState.updateLastRingTimer();
                 uiManager.updateLastRingTimer(gameState);
-                
+
                 if (timeExpired) {
                     const ringsPassedCount = getRingsPassedCount();
-                    
+
                     if (gameState.finishTimeout) {
                         clearTimeout(gameState.finishTimeout);
                     }
-                    
+
                     uiManager.hideFinishCountdown();
                     showEndScreen(ringsPassedCount >= 10);
                     return;
                 }
             }
-            
+
             handleRingCollisions();
         }
-        
+
         planeController.updateMovement(gameState, getTerrainHeight);
-        
+
         uiManager.updateSpeedDisplay(gameState.speedMultiplier);
-        
+
         if (planeController.getPlane()) {
             const altitude = planeController.getPosition().y;
             uiManager.updateAltitudeDisplay(altitude, planeController.getMaxAltitude());
