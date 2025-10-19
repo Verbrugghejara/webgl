@@ -12,37 +12,37 @@
   <!-- Startscherm -->
   <div id="startScreen">
     <h1>Sky Navigator</h1>
-    <div class="subtitle">Precisievliegen door de navigatieroute</div>
+    <div class="subtitle">Precision flying through the navigation route</div>
     
     <div class="instructions">
-      <h3 style="color: #00ffff; margin-top: 0;">Missie</h3>
-      <p>Navigeer je vliegtuig door de aangegeven waypoints. Volg de route nauwkeurig en behoud controle over snelheid en hoogte tijdens je vlucht door het landschap.</p>
+      <h3 style="color: #00ffff; margin-top: 0;">Mission</h3>
+      <p>Navigate your aircraft through the designated waypoints. Follow the route accurately and maintain control over speed and altitude during your flight through the landscape.</p>
     </div>
     
     <div class="controls">
       <div class="control-group">
-        <div class="control-title">Navigatie</div>
-        <div class="control-desc">W/↑ - Voorwaarts<br>S/↓ - Achterwaarts<br>A/← - Links<br>D/→ - Rechts</div>
+        <div class="control-title">Navigation</div>
+        <div class="control-desc">W/↑ - Forward<br>S/↓ - Backward<br>A/← - Left<br>D/→ - Right</div>
       </div>
       
       <div class="control-group">
-        <div class="control-title">Hoogte & Snelheid</div>
-        <div class="control-desc">SPATIE/arrowUp - Stijgen<br>SHIFT/arrowDown - Dalen<br>+ - Versnellen<br>- - Vertragen</div>
+        <div class="control-title">Altitude & Speed</div>
+        <div class="control-desc">SPACE/↑ - Climb<br>SHIFT/↓ - Descend<br>+ - Accelerate<br>- - Decelerate</div>
       </div>
     </div>
     
     <div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
-      <button id="startButton">Start Missie</button>
-      <button id="flyFreeButton">Vrije Vlucht</button>
+      <button id="startButton">Start Mission</button>
+      <button id="flyFreeButton">Free Flight</button>
     </div>
   </div>
 
 
   <div id="gameArea" class="hidden">
     <div style="display: flex; gap: 30px; align-items: center;">
-      <h1 id="scoreLabel">Ringen: <span id="score">0</span>/10</h1>
-      <h2>Snelheid: <span id="speed">1.0</span>x</h2>
-      <h2 id="timerLabel">Tijd: <span id="timer">00:00</span></h2>
+      <h1 id="scoreLabel">Rings: <span id="score">0</span>/10</h1>
+      <h2>Speed: <span id="speed">1.0</span>x</h2>
+      <h2 id="timerLabel">Time: <span id="timer">00:00</span></h2>
     </div>
     
     <!-- Grote countdown timer voor einde spel -->
@@ -53,7 +53,7 @@
     
     <!-- Snelheidsthrottle aan rechterkant -->
     <div id="speedThrottle" class="speed-throttle">
-      <div class="throttle-label">SNELHEID</div>
+      <div class="throttle-label">SPEED</div>
       <div class="throttle-container">
         <div class="throttle-track">
           <div class="throttle-fill" id="throttleFill"></div>
@@ -74,24 +74,24 @@
 
   <!-- Eindscherm -->
   <div id="endScreen" class="hidden">
-    <h1>Missie Voltooid</h1>
-    <div class="subtitle">Vlucht succesvol afgerond</div>
+    <h1>Mission Complete</h1>
+    <div class="subtitle">Flight successfully completed</div>
     
     <div class="end-stats">
-      <h3 style="color: #00ffff; margin-top: 0;">Resultaten</h3>
+      <h3 style="color: #00ffff; margin-top: 0;">Results</h3>
       <div class="stat-item">
-        <span class="stat-label">Ringen Gepasseerd:</span>
+        <span class="stat-label">Rings Passed:</span>
         <span class="stat-value" id="finalScore">10/10</span>
       </div>
       <div class="stat-item">
-        <span class="stat-label">Eindsnelheid:</span>
+        <span class="stat-label">Final Speed:</span>
         <span class="stat-value" id="finalSpeed">6.0x</span>
       </div>
     </div>
     
     <div class="end-buttons">
-      <button id="playAgainButton">Opnieuw Vliegen</button>
-      <button id="backToMenuButton">Hoofdmenu</button>
+      <button id="playAgainButton">Fly Again</button>
+      <button id="backToMenuButton">Main Menu</button>
     </div>
   </div>
 
@@ -103,6 +103,14 @@
         "three/examples/jsm/loaders/GLTFLoader.js": "https://unpkg.com/three@0.180.0/examples/jsm/loaders/GLTFLoader.js"
       }
     }
+  </script>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.169.0/build/three.module.js",
+      "three/examples/jsm/loaders/GLTFLoader.js": "https://unpkg.com/three@0.169.0/examples/jsm/loaders/GLTFLoader.js"
+    }
+  }
   </script>
   <script type="module" src="src/assets/js/script.js"></script>
 </body>

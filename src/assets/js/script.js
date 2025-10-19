@@ -1,10 +1,75 @@
 
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
-import landscapeFragmentShader from './shaders/fragment.glsl?raw';
-import landscapeVertexShader from './shaders/vertex.glsl?raw';
+// Shader loading function
+async function loadShader(url) {
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`Failed to load shader: ${response.status}`);
+        }
+        return await response.text();
+    } catch (error) {
+        console.error('Error loading shader:', error);
+        return '';
+    }
+}
 
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+// Load shaders
+let landscapeVertexShader = '';
+let landscapeFragmentShader = '';
+
+// Initialize shaders
+async function initShaders() {
+    // Try multiple paths for GitHub Pages compatibility
+    const shaderPaths = [
+        { vertex: './src/js/shaders/vertex.glsl', fragment: './src/js/shaders/fragment.glsl' },
+        { vertex: '/webgl/src/js/shaders/vertex.glsl', fragment: '/webgl/src/js/shaders/fragment.glsl' },
+        { vertex: 'src/js/shaders/vertex.glsl', fragment: 'src/js/shaders/fragment.glsl' }
+    ];
+    
+    for (const paths of shaderPaths) {
+        try {
+            landscapeVertexShader = await loadShader(paths.vertex);
+            landscapeFragmentShader = await loadShader(paths.fragment);
+            
+            if (landscapeVertexShader && landscapeFragmentShader) {
+                break;
+            }
+        } catch (error) {
+            console.warn(`Failed to load shaders from ${paths.vertex}:`, error);
+        }
+    }
+    
+    if (!landscapeVertexShader || !landscapeFragmentShader) {
+        console.error('Failed to load shaders from all paths');
+        // Provide fallback shaders
+        landscapeVertexShader = `
+            precision mediump float;
+            attribute vec3 position;
+            attribute vec2 uv;
+            uniform mat4 modelViewMatrix;
+            uniform mat4 projectionMatrix;
+            varying vec2 vUv;
+            void main() {
+                vUv = uv;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+        `;
+        landscapeFragmentShader = `
+            precision mediump float;
+            varying vec2 vUv;
+            void main() {
+                gl_FragColor = vec4(0.5, 0.7, 1.0, 1.0);
+            }
+        `;
+    }
+}
+
+
+
+
 
 // ------------------- Game State -------------------
 let gameStarted = false;
@@ -24,79 +89,65 @@ let playerPlane = null;
 let mixer = null;
 const loader = new GLTFLoader();
 
-loader.load(
-    './src/assets/blender/airplane.glb',
-    function (gltf) {
+// Try multiple paths for GitHub Pages compatibility
+const modelPaths = [
+    './assets/airplane.glb',
+    '/webgl/assets/airplane.glb',
+    'assets/airplane.glb'
+];
 
-        const model = gltf.scene;
-        
-        if (playerPlane) {
-            scene.remove(playerPlane);
-        }
-        
-        model.scale.set(1.0, 1.0, 1.0);
-        model.position.set(0, 0, 0);
-        
-        mixer = new THREE.AnimationMixer(model);
-        const clips = gltf.animations;
-        if (clips && clips.length > 0) {
-            const action = mixer.clipAction(clips[0]);
-            action.play();
+let currentPathIndex = 0;
 
-        }
-        
-        model.traverse((child) => {
-            if (child.isMesh) {
-                child.castShadow = true;
-                child.receiveShadow = true;
-            }
-        });
-        
-        playerPlane = model;
-        scene.add(playerPlane);
-    },
-    function (progress) {
-        // Loading progress
-    },
-    function (error) {
-        console.warn('Failed to load from ./assets/blender/, trying /assets/blender/...');
-        loader.load(
-            '/src/assets/blender/airplane.glb',
-            function (gltf) {
-                const model = gltf.scene;
-                
-                if (playerPlane) {
-                    scene.remove(playerPlane);
-                }
-                
-                model.scale.set(1.0, 1.0, 1.0);
-                model.position.set(0, 0, 0);
-                
-                mixer = new THREE.AnimationMixer(model);
-                const clips = gltf.animations;
-                if (clips && clips.length > 0) {
-                    const action = mixer.clipAction(clips[0]);
-                    action.play();
-                }
-                
-                model.traverse((child) => {
-                    if (child.isMesh) {
-                        child.castShadow = true;
-                        child.receiveShadow = true;
-                    }
-                });
-                
-                playerPlane = model;
-                scene.add(playerPlane);
-            },
-            undefined,
-            function (error2) {
-                console.error('Failed to load from both paths:', error, error2);
-                createFallbackPlane();
-            }
-        );
+function loadAirplaneModel() {
+    if (currentPathIndex >= modelPaths.length) {
+        console.error('Failed to load airplane model from all paths');
+        createFallbackPlane();
+        return;
     }
-);
+
+    const currentPath = modelPaths[currentPathIndex];
+    
+    loader.load(
+        currentPath,
+        function (gltf) {
+            const model = gltf.scene;
+            
+            if (playerPlane) {
+                scene.remove(playerPlane);
+            }
+            
+            model.scale.set(1.0, 1.0, 1.0);
+            model.position.set(0, 0, 0);
+            
+            mixer = new THREE.AnimationMixer(model);
+            const clips = gltf.animations;
+            if (clips && clips.length > 0) {
+                const action = mixer.clipAction(clips[0]);
+                action.play();
+            }
+            
+            model.traverse((child) => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                }
+            });
+            
+            playerPlane = model;
+            scene.add(playerPlane);
+        },
+        function (progress) {
+            // Loading progress
+        },
+        function (error) {
+            currentPathIndex++;
+            loadAirplaneModel(); // Try next path
+        }
+    );
+}
+
+// Start loading the model
+loadAirplaneModel();
 
 function createFallbackPlane() {
     const planeGeometry = new THREE.BoxGeometry(0.5, 0.2, 1);
@@ -180,7 +231,7 @@ function startGame() {
 
 function updateUIForGameMode() {
     if (scoreLabel) {
-        scoreLabel.innerHTML = 'Ringen: <span id="score">0</span>/10';
+        scoreLabel.innerHTML = 'Rings: <span id="score">0</span>/10';
         scoreLabel.style.color = 'white';
         const newScore = document.getElementById('score');
         if (newScore) {
@@ -188,7 +239,7 @@ function updateUIForGameMode() {
         }
     }
     if (timerLabel) {
-        timerLabel.innerHTML = 'Tijd: <span id="timer">00:00</span>';
+        timerLabel.innerHTML = 'Time: <span id="timer">00:00</span>';
         const newTimer = document.getElementById('timer');
         if (newTimer) {
             updateTimerDisplay();
@@ -223,7 +274,7 @@ function updateUIForFreeFlightMode() {
         scoreLabel.style.color = '#ff9900';
     }
     if (timerLabel) {
-        timerLabel.textContent = "Controles: ";
+        timerLabel.textContent = "Controls: R=Reset | Esc=Menu | 1=Day | 2=Night | 3=Storm | +=Faster | -=Slower";
     }
     updateTimerDisplay();
 }
@@ -248,7 +299,6 @@ function showEndScreen(isSuccess = false) {
     
     const endScreenTitle = currentEndScreen?.querySelector('h1');
     const endScreenSubtitle = currentEndScreen?.querySelector('.subtitle');
-    // const statusElement = currentEndScreen?.querySelector('.stat-value[style*="color: #00ff00"]');
     
     gameStarted = false;
     gameEnded = true;
@@ -269,19 +319,19 @@ function showEndScreen(isSuccess = false) {
     
     if (endScreenTitle) {
         if (isSuccess) {
-            endScreenTitle.textContent = "Gefeliciteerd!";
+            endScreenTitle.textContent = "Congratulations!";
         } else {
-            endScreenTitle.textContent = "Net Niet Gelukt!";
+            endScreenTitle.textContent = "Almost There!";
         }
     }
     
     if (endScreenSubtitle) {
         if (isSuccess) {
-            endScreenSubtitle.textContent = `Alle 10 ringen gepasseerd in ${timeString}!`;
+            endScreenSubtitle.textContent = `All 10 rings passed in ${timeString}!`;
             endScreenSubtitle.style.color = "#ffff00";
         } else {
             const ringsPassedCount = rings.filter(r => r.userData.passed).length;
-            endScreenSubtitle.textContent = `${ringsPassedCount} van de 10 ringen gehaald in ${timeString}!`;
+            endScreenSubtitle.textContent = `${ringsPassedCount} of 10 rings completed in ${timeString}!`;
             endScreenSubtitle.style.color = "#ffaa00";
         }
     }
@@ -294,17 +344,6 @@ function showEndScreen(isSuccess = false) {
         currentFinalSpeed.textContent = `${speedMultiplier.toFixed(1)}x`;
     }
     
-    if (statusElement) {
-        if (isSuccess) {
-            statusElement.textContent = `✅ Voltooid in ${timeString}!`;
-            statusElement.style.color = "#00ff00";
-        } else {
-            const ringsPassedCount = rings.filter(r => r.userData.passed).length;
-            statusElement.textContent = `🎯 ${ringsPassedCount}/10 ringen in ${timeString}`;
-            statusElement.style.color = "#ff6600";
-        }
-    }
-    
 
 }
 
@@ -315,9 +354,14 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(90, window.innerWidth/window.innerHeight, 0.1, 1000);
 camera.position.set(0, 2, 5);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, canvas: canvas });
+const renderer = new THREE.WebGLRenderer({ 
+    // antialias: window.devicePixelRatio <= 1, // Only use antialiasing on low DPI screens
+    canvas: canvas,
+    // powerPreference: "high-performance" // Request high-performance GPU
+});
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(window.devicePixelRatio);
+// Limit pixel ratio to improve performance
+// renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
@@ -334,35 +378,46 @@ directionalLight.shadow.mapSize.height = 2048;
 scene.add(directionalLight);
 
 // ------------------- Shader Background -------------------
-const shaderGeometry = new THREE.PlaneGeometry(2, 2);
-const shaderMaterial = new THREE.RawShaderMaterial({
-    uniforms: {
-        iTime: { value: 0 },
-        iResolution: { value: new THREE.Vector3(window.innerWidth, window.innerHeight, 1) },
-        uCameraPos: { value: new THREE.Vector3(0, 2, 5) },
-        uCameraTarget: { value: new THREE.Vector3(0, 2, 0) },
-        uTimeOfDay: { value: 0.5 },
-        
-        uSpeedMultiplier: { value: 0.0 },
-        uColorFilter: { value: new THREE.Vector3(1, 1, 1) },
-        uPsychedelicMode: { value: 0.0 },
-        uWaveIntensity: { value: 0.0 },
-        uGlitchMode: { value: 0.0 },
-        uNightVision: { value: 0.0 }
-    },
-    transparent: false,
-    vertexShader: landscapeVertexShader,
-    fragmentShader: landscapeFragmentShader,
-});
+let shaderGeometry;
+let shaderMaterial;
+let shaderPlane;
+let backgroundScene;
+let backgroundCamera;
 
-const shaderPlane = new THREE.Mesh(shaderGeometry, shaderMaterial);
-shaderPlane.position.set(0,0,0);
 
-const backgroundScene = new THREE.Scene();
-backgroundScene.add(shaderPlane);
 
-const backgroundCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-backgroundCamera.position.z = 0.5;
+// Initialize shader background after shaders are loaded
+async function initShaderBackground() {
+    shaderGeometry = new THREE.PlaneGeometry(2, 2);
+    shaderMaterial = new THREE.RawShaderMaterial({
+        uniforms: {
+            iTime: { value: 0 },
+            iResolution: { value: new THREE.Vector3(window.innerWidth, window.innerHeight, 1) },
+            uCameraPos: { value: new THREE.Vector3(0, 2, 5) },
+            uCameraTarget: { value: new THREE.Vector3(0, 2, 0) },
+            uTimeOfDay: { value: 0.5 },
+            
+            uSpeedMultiplier: { value: 0.0 },
+            uColorFilter: { value: new THREE.Vector3(1, 1, 1) },
+            uPsychedelicMode: { value: 0.0 },
+            uWaveIntensity: { value: 0.0 },
+            uGlitchMode: { value: 0.0 },
+            uNightVision: { value: 0.0 }
+        },
+        transparent: false,
+        vertexShader: landscapeVertexShader,
+        fragmentShader: landscapeFragmentShader,
+    });
+
+    shaderPlane = new THREE.Mesh(shaderGeometry, shaderMaterial);
+    shaderPlane.position.set(0,0,0);
+
+    backgroundScene = new THREE.Scene();
+    backgroundScene.add(shaderPlane);
+
+    backgroundCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    backgroundCamera.position.z = 0.5;
+}
 
 // ------------------- Player Plane -------------------
 
@@ -437,20 +492,23 @@ window.addEventListener('keyup', (event) => {
         if (event.code === 'Digit1') {
             targetTimeOfDay = 1.0;
             isStorming = false;
-            shaderMaterial.uniforms.uSpeedMultiplier.value = 0.0;
-
+            if (shaderMaterial) {
+                shaderMaterial.uniforms.uSpeedMultiplier.value = 0.0;
+            }
         }
         if (event.code === 'Digit2') {
             targetTimeOfDay = 0.1;
             isStorming = false;
-            shaderMaterial.uniforms.uSpeedMultiplier.value = 0.0;
-
+            if (shaderMaterial) {
+                shaderMaterial.uniforms.uSpeedMultiplier.value = 0.0;
+            }
         }
         if (event.code === 'Digit3') {
             targetTimeOfDay = 0.2;
             isStorming = true;
-            shaderMaterial.uniforms.uSpeedMultiplier.value = 1.5;
-
+            if (shaderMaterial) {
+                shaderMaterial.uniforms.uSpeedMultiplier.value = 1.5;
+            }
         }
     }
     
@@ -522,12 +580,14 @@ function resetGame() {
         speedMultiplier = 1.0;
     }
     
-    shaderMaterial.uniforms.uSpeedMultiplier.value = 0.0;
-    shaderMaterial.uniforms.uColorFilter.value.set(1, 1, 1);
-    shaderMaterial.uniforms.uPsychedelicMode.value = 0.0;
-    shaderMaterial.uniforms.uWaveIntensity.value = 0.0;
-    shaderMaterial.uniforms.uGlitchMode.value = 0.0;
-    shaderMaterial.uniforms.uNightVision.value = 0.0;
+    if (shaderMaterial) {
+        shaderMaterial.uniforms.uSpeedMultiplier.value = 0.0;
+        shaderMaterial.uniforms.uColorFilter.value.set(1, 1, 1);
+        shaderMaterial.uniforms.uPsychedelicMode.value = 0.0;
+        shaderMaterial.uniforms.uWaveIntensity.value = 0.0;
+        shaderMaterial.uniforms.uGlitchMode.value = 0.0;
+        shaderMaterial.uniforms.uNightVision.value = 0.0;
+    }
     
     planePosition.x = 0;
     planePosition.y = 0;
@@ -561,7 +621,7 @@ function updateTimerDisplay() {
     
     if (currentTimer && !gameEnded) {
         if (isFreeFlightMode) {
-            currentTimer.textContent = "1=Dag | 2=Nacht | 3=Storm | +=Sneller | -=Langzamer";
+            currentTimer.textContent = "1=Day | 2=Night | 3=Storm | +=Faster | -=Slower";
             currentTimer.style.color = '#ffaa00';
             currentTimer.style.fontSize = '0.8em';
         } else {
@@ -774,9 +834,9 @@ function updatePlaneMovement() {
     
     let targetBanking = 0;
     if (keys['KeyA'] || keys['ArrowLeft']) {
-        targetBanking = 0.3;
+        targetBanking = 0.5;
     } else if (keys['KeyD'] || keys['ArrowRight']) {
-        targetBanking = -0.3;
+        targetBanking = -0.5;
     }
     
     const bankingDifference = targetBanking - (bankingVelocity * 15);
@@ -901,9 +961,10 @@ function checkRingCollisions() {
                     if (index === nextRingIndex) {
                         if (isStorming) {
                             isStorming = false;
-                            shaderMaterial.uniforms.uSpeedMultiplier.value = 0.0;
+                            if (shaderMaterial) {
+                                shaderMaterial.uniforms.uSpeedMultiplier.value = 0.0;
+                            }
                             targetTimeOfDay = 0.8;
-
                         }
                         nextRingIndex++;
 
@@ -912,9 +973,10 @@ function checkRingCollisions() {
                         
                         if (index > nextRingIndex && isStorming) {
                             isStorming = false;
-                            shaderMaterial.uniforms.uSpeedMultiplier.value = 0.0;
+                            if (shaderMaterial) {
+                                shaderMaterial.uniforms.uSpeedMultiplier.value = 0.0;
+                            }
                             targetTimeOfDay = 0.8;
-
                         }
                         
                         nextRingIndex = index + 1;
@@ -997,16 +1059,17 @@ function checkMissedRings() {
                 startFinishCountdown();
                 
                 if (timerDisplay) {
-                    timerDisplay.textContent = `Laatste ring gemist! Tijd: 3.0s`;
+                    timerDisplay.textContent = `Last ring missed! Time: 3.0s`;
                     timerDisplay.style.color = '#ff6600';
                     timerDisplay.style.fontSize = '1.2em';
                 }
             } else {
                 if (!isStorming) {
                     isStorming = true;
-                    shaderMaterial.uniforms.uSpeedMultiplier.value = 1.5;
+                    if (shaderMaterial) {
+                        shaderMaterial.uniforms.uSpeedMultiplier.value = 1.5;
+                    }
                     targetTimeOfDay = 0.1;
-
                 }
             }
             
@@ -1020,7 +1083,9 @@ window.addEventListener('resize', ()=>{
     camera.aspect = window.innerWidth/window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-    shaderMaterial.uniforms.iResolution.value.set(window.innerWidth, window.innerHeight, 1);
+    if (shaderMaterial) {
+        shaderMaterial.uniforms.iResolution.value.set(window.innerWidth, window.innerHeight, 1);
+    }
 });
 
 // ------------------- Camera & Rendering Functions -------------------
@@ -1044,8 +1109,10 @@ function updateCamera() {
     );
     const cameraTarget = playerPlane.position.clone().add(lookAhead);
     
-    shaderMaterial.uniforms.uCameraPos.value.copy(cameraPos);
-    shaderMaterial.uniforms.uCameraTarget.value.copy(cameraTarget);
+    if (shaderMaterial) {
+        shaderMaterial.uniforms.uCameraPos.value.copy(cameraPos);
+        shaderMaterial.uniforms.uCameraTarget.value.copy(cameraTarget);
+    }
     
     const camera3DOffset = new THREE.Vector3(
         -planeRotationSin * 5, 
@@ -1063,8 +1130,10 @@ function updateCamera() {
 }
 
 function updateShaderUniforms(time) {
-    shaderMaterial.uniforms.iTime.value = time * 0.001;
-    shaderMaterial.uniforms.uTimeOfDay.value = currentTimeOfDay;
+    if (shaderMaterial) {
+        shaderMaterial.uniforms.iTime.value = time * 0.001;
+        shaderMaterial.uniforms.uTimeOfDay.value = currentTimeOfDay;
+    }
     
     if (mixer) {
         mixer.update(0.016);
@@ -1121,7 +1190,11 @@ function animateRings(time) {
 function render() {
     renderer.autoClear = false;
     renderer.clear();
-    renderer.render(backgroundScene, backgroundCamera);
+    
+    // Only render background if shaders are loaded
+    if (backgroundScene && backgroundCamera) {
+        renderer.render(backgroundScene, backgroundCamera);
+    }
     
     renderer.clearDepth();
     renderer.render(scene, camera);
@@ -1141,10 +1214,10 @@ function animate(time){
                 if (timerDisplay) {
                     const remainingTime = Math.max(0, 3 - lastRingTimer);
                     if (lastRingPassed) {
-                        timerDisplay.textContent = `Eindigt in: ${remainingTime.toFixed(1)}s`;
+                        timerDisplay.textContent = `Ending in: ${remainingTime.toFixed(1)}s`;
                         timerDisplay.style.color = '#00ff00';
                     } else {
-                        timerDisplay.textContent = `Laatste kans: ${remainingTime.toFixed(1)}s`;
+                        timerDisplay.textContent = `Last chance: ${remainingTime.toFixed(1)}s`;
                         timerDisplay.style.color = '#ff6600';
                     }
                     timerDisplay.style.fontSize = '1.2em';
@@ -1208,4 +1281,18 @@ function animate(time){
     render();
 }
 
-animate();
+
+
+// Initialize the application
+async function init() {
+    try {
+        await initShaders();
+        await initShaderBackground();
+        animate();
+    } catch (error) {
+        console.error('Error during initialization:', error);
+        animate();
+    }
+}
+
+init();
