@@ -28,6 +28,7 @@ export function createShaderManager(landscapeVertexShader, landscapeFragmentShad
             transparent: false,
             vertexShader: vertexShader,
             fragmentShader: fragmentShader,
+            glslVersion: THREE.GLSL3
         });
         
         shaderPlane = new THREE.Mesh(shaderGeometry, shaderMaterial);
