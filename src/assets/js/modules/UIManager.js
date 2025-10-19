@@ -135,7 +135,7 @@ export function createUIManager() {
             scoreLabel.style.color = '#ff9900';
         }
         if (timerLabel) {
-            timerLabel.textContent = "Controles: ";
+            timerLabel.textContent = "Controles: 1 = Dag | 2 = Nacht | 3 = Storm | + = Sneller | - = Langzamer | R = Restart | ESC = Menu";
         }
     };
     
